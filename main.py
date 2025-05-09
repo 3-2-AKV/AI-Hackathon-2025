@@ -3,7 +3,7 @@ import datetime
 from ingredients import add_ingredient_to_db
 from database import get_ingredients, create_db, insert_grocery_item, get_grocery_list, remove_ingredient_from_db
 from groceries import insert_grocery_item_to_db
-# import requests 
+from meal_plans import sort_ingredients_by_expiration
 
 create_db()
 
@@ -104,12 +104,14 @@ with left_col:
         
         st.write(line)
 
-
         num_col, type_col, empty1 = st.columns([1, 1, 1])
         with num_col:
             num_recipes = st.text_input("Number of recipes to create:", placeholder = "1")
         with type_col:
-            type_recipy = st.selectbox("Type of meal:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"])
+            meal_type = st.selectbox("Type of meal:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"])
+        personal_preferences = st.text_input("Specify any preferences (e.g. allergies, preferred preparation methods, temperature):")
+
+        # important = sort_ingredients_by_expiration(st.session_state['items'])
 
 with right_col: 
     st.write("### Recipes Output")
