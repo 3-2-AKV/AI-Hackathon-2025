@@ -3,6 +3,7 @@ from transformers import pipeline
 from datetime import datetime
 from datetime import date
 import subprocess
+from database import get_ingredients, create_db, insert_meal_plan, get_grocery_list, remove_ingredient_from_db
 
 today_str = str(date.today())
 curr_date = datetime.strptime(today_str, "%Y-%m-%d")
@@ -36,11 +37,12 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
             f"(each with quantity and unit):\n"
             f"{', '.join([i for i in all_ing])}.\n\n"
             f"Adapt recipes based on the following user preferences (e.g. allergies, preferred preparation methods, temperature): {personal_preferences}.\n\n"
-            f"For each recipe, provide:\n"
-            f"1. A clear name of the meal without any creative/strange titles (do not repeat the title twice)\n"
-            f"2. A list of ingredients with exact amounts and units\n"
-            f"3. Easy-to-follow step-by-step cooking instructions\n\n"
-            f"ONLY include information relevant to the recipe."
+            f"For each recipe, provide output in exact format:\n"
+            f"A clear name of the meal without any creative/strange titles\n"
+            f"A list of ingredients with exact amounts and units\n"
+            f"Easy-to-follow step-by-step cooking instructions\n\n"
+            f"No additional output at the end and beginning.\n"
+            f"Remember to ONLY include information relevant to the recipe."
             f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
         )
 
@@ -67,14 +69,47 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
                 if not cleaned:
                     return "No response from the model. Try again or check your Ollama setup."
                 else:
-                    return cleaned
+                    cleaned1 = cleaned
+                    name_match = re.search(r'### Recipe \d+:\s(.+)', cleaned)
+                    recipe_name = name_match.group(1).strip() if name_match else "Unknown"
+                    ingredients_match = re.search(
+                    r'\*\*Ingredients\*\*\n(.+?)\n\n',
+                    cleaned,
+                    flags=re.DOTALL
+                    )
+                    ingredients_raw = ingredients_match.group(1).strip() if ingredients_match else ""
+                    ingredients_list = [line[2:].strip() for line in ingredients_raw.splitlines() if line.startswith("-")]
+                    instructions_match = re.search(
+                        r'\*\*Instructions\*\*\n([\s\S]+)$',
+                        cleaned,
+                        flags=re.DOTALL
+                    )
+                    instructions_raw = instructions_match.group(1).strip() if instructions_match else ""
+                    instructions_list = [
+                        line[len(prefix):].strip()
+                        for line in instructions_raw.splitlines()
+                        if (m := re.match(r'(\d+)\.', line))
+                        for prefix in [m.group(0)]
+                    ]
+                    insert_meal_plan(
+                        meal_type=meal_type,
+                        meal_name=recipe_name,
+                        meal_ingredients=ingredients_list,
+                        meal_instructions=instructions_list
+                    )
+                    return cleaned1
 
+       
+        
         except subprocess.TimeoutExpired:
             proc.kill()
             return "The model took too long to respond. Please try again."
         except Exception as e:
             return f"Unexpected error: {e}"
             
+       
+
+
 
         # Generate response using Hugging Face pipeline
         # generator = pipeline("text-generation", model="gpt2")

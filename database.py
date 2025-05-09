@@ -15,11 +15,12 @@ def create_db():
 
     # Create meal plans table (this can store generated meal plans)
     c.execute('''CREATE TABLE IF NOT EXISTS meal_plans (
-                    id INTEGER PRIMARY KEY,
-                    meal_type TEXT NOT NULL,
-                    days INTEGER NOT NULL,
-                    ingredients TEXT NOT NULL,
-                    meal_plan TEXT NOT NULL)''')
+    id INTEGER PRIMARY KEY,
+    meal_type TEXT NOT NULL,
+    meal_name TEXT NOT NULL,
+    meal_ingredients TEXT NOT NULL,
+    meal_instructions TEXT NOT NULL
+)''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS shopping_list (
                     id INTEGER PRIMARY KEY,
@@ -65,12 +66,12 @@ def get_ingredients():  # Needed ONLY FOR MAIN PY when getting the STORED items 
     return ingredients
 
 # Save a generated meal plan to the database
-def insert_meal_plan(meal_plan, ingredients_list, meal_type, days):  # WILL be needed for the MAIN PY after we make a REQUEST and get and answer from AI
+def insert_meal_plan(meal_type, meal_name, meal_ingredients, meal_instructions):  # WILL be needed for the MAIN PY after we make a REQUEST and get and answer from AI
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
-    c.execute('''INSERT INTO meal_plans (meal_type, days, ingredients, meal_plan)
+    c.execute('''INSERT INTO meal_plans (meal_type, meal_ingredients, meal_name, meal_instructions)
                  VALUES (?, ?, ?, ?)''',
-              (meal_type, days, ', '.join(ingredients_list), meal_plan))
+              (meal_type, ', '.join(meal_ingredients), meal_name, meal_instructions))
     conn.commit()
     conn.close()
 
@@ -80,3 +81,25 @@ def remove_ingredient_from_db(name):
     c.execute('DELETE FROM ingredients WHERE name = ?', (name,))
     conn.commit()
     conn.close()
+
+def get_meal_plans():
+    """
+    Fetch all saved meal plans, most-recent first.
+    Returns a list of tuples:
+      (id, meal_type, meal_name, meal_ingredients, meal_instructions)
+    """
+    conn = sqlite3.connect('meal_planner.db')
+    c = conn.cursor()
+    c.execute("""
+        SELECT id,
+               meal_type,
+               meal_name,
+               meal_ingredients,
+               meal_instructions
+        FROM meal_plans
+        ORDER BY id DESC
+    """)  # <-- triple-quotes open and close correctly
+    plans = c.fetchall()
+    conn.close()
+    return plans
+

@@ -1,7 +1,10 @@
 import streamlit as st
 import datetime
 from ingredients import add_ingredient_to_db
-from database import get_ingredients, create_db, insert_grocery_item, get_grocery_list, remove_ingredient_from_db
+from database import (
+    create_db, get_ingredients, insert_grocery_item, get_grocery_list,
+    remove_ingredient_from_db, get_meal_plans
+)
 from groceries import insert_grocery_item_to_db
 from meal_plans import generate_meal_plan
 import re
@@ -33,8 +36,10 @@ if 'groceries' not in st.session_state:
             'checked': False
         })
 
-with left_col: 
-    ingred_tab, cart_tab, create_tab = st.tabs(["Ingredients", "Shopping Cart", "Create Recipe"])
+with left_col:
+    ingred_tab, cart_tab, create_tab, plans_tab = st.tabs([
+        "Ingredients", "Shopping Cart", "Create Recipe", "Saved Meal Plans"
+    ])
     with ingred_tab:
         ingred_tab.subheader("Ingredients")
 
@@ -117,6 +122,36 @@ with left_col:
         if st.button("Create the recipe", key = "create"):
             response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
             # st.markdown(response)
+        
+        with plans_tab:
+            plans_tab.subheader("Your Saved Meal Plans")
+
+        plans = get_meal_plans()
+        if not plans:
+            plans_tab.write("No meal plans saved yet.")
+        else:
+            for plan in plans:
+                _id, meal_type, meal_name, raw_ings, raw_instr = plan
+
+                # raw_ings is a comma-joined string; raw_instr is the list repr
+                ings = raw_ings.split(', ')
+                try:
+                    # if instructions were stored as Python list repr, parse it
+                    import ast
+                    instr_list = ast.literal_eval(raw_instr)
+                except Exception:
+                    # fallback: split into sentences
+                    instr_list = raw_instr.split('. ')
+
+                plans_tab.markdown(f"### {meal_name}  _(Type: {meal_type})_")
+                plans_tab.markdown("**Ingredients:**")
+                for ing in ings:
+                    plans_tab.write(f"- {ing}")
+
+                plans_tab.markdown("**Instructions:**")
+                for i, step in enumerate(instr_list, 1):
+                    plans_tab.write(f"{i}. {step}")
+                plans_tab.markdown("---")
 
 with right_col: 
     st.subheader("Recipes Output")
