@@ -3,7 +3,8 @@ import datetime
 from ingredients import add_ingredient_to_db
 from database import get_ingredients, create_db, insert_grocery_item, get_grocery_list, remove_ingredient_from_db
 from groceries import insert_grocery_item_to_db
-from meal_plans import sort_ingredients_by_expiration
+from meal_plans import generate_meal_plan
+import re
 
 create_db()
 
@@ -112,6 +113,16 @@ with left_col:
         personal_preferences = st.text_input("Specify any preferences (e.g. allergies, preferred preparation methods, temperature):")
 
         # important = sort_ingredients_by_expiration(st.session_state['items'])
+        response = ''
+        if st.button("Create the recipe", key = "create"):
+            response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
+            # st.markdown(response)
 
 with right_col: 
-    st.write("### Recipes Output")
+    st.subheader("Recipes Output")
+    if response != '':
+        # response = response["message"]["content"]
+        # cleaned_content = re.sub(r"<think>.*?</think>\n?", "", response)
+        st.markdown(response)
+    else:
+        st.write("Click “Create the recipe” to see your meal plan.")
