@@ -93,6 +93,23 @@ with left_col:
 
     with create_tab:
         create_tab.subheader("Create Recipe")
+        st.write("The ingredients you chose:")
+        checked_items = []
+        line = ''
+        for i, item in enumerate(st.session_state['items']):
+            if item['checked']:
+                checked_items.append(item)
+        for item in checked_items:
+            line = ', '.join(f"{item['name']}" for item in checked_items)
+        
+        st.write(line)
+
+
+        num_col, type_col, empty1 = st.columns([1, 1, 1])
+        with num_col:
+            num_recipes = st.text_input("Number of recipes to create:", placeholder = "1")
+        with type_col:
+            type_recipy = st.selectbox("Type of meal:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"])
 
 with right_col: 
     st.write("### Recipes Output")
