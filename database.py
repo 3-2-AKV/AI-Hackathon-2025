@@ -55,6 +55,13 @@ def get_grocery_list():
     conn.close()
     return groceries
 
+def remove_grocery_from_db(name):
+    conn = sqlite3.connect('meal_planner.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM shopping_list WHERE name = ?', (name,))
+    conn.commit()
+    conn.close()
+
 # Retrieve all ingredients from the database
 def get_ingredients():  # Needed ONLY FOR MAIN PY when getting the STORED items into the items LIST in main.py
     conn = sqlite3.connect('meal_planner.db')

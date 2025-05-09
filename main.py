@@ -1,8 +1,6 @@
 import streamlit as st
 import datetime
-from ingredients import add_ingredient_to_db
-from database import get_ingredients, create_db, insert_grocery_item, get_grocery_list, remove_ingredient_from_db
-from groceries import insert_grocery_item_to_db
+from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db
 from meal_plans import generate_meal_plan
 import re
 
@@ -36,7 +34,7 @@ if 'groceries' not in st.session_state:
 with left_col: 
     ingred_tab, cart_tab, create_tab = st.tabs(["Ingredients", "Shopping Cart", "Create Recipe"])
     with ingred_tab:
-        ingred_tab.subheader("Ingredients")
+        ingred_tab.subheader("Ingredients You Have")
 
         # Input field for the ingridient + add button
 
@@ -45,7 +43,7 @@ with left_col:
         with am_col:
             product_amount = st.text_input("Amount", placeholder = '2')
         with unit_col:
-            product_unit = st.selectbox("Unit", ['litres', 'grams', 'items'])
+            product_unit = st.selectbox("Unit", ['litres', 'kilograms', 'grams', 'items'])
         with expiry_col:
             expiry_date = st.date_input("Expiry date", value = datetime.date.today())
         if st.button("Add", key = "add_ingredient"):
@@ -57,20 +55,23 @@ with left_col:
                     'expiry': expiry_date,
                     'checked': False
                 })
-                add_ingredient_to_db(product_name, product_amount, product_unit, expiry_date)
+                insert_ingredient(product_name, product_amount, product_unit, expiry_date)
             else:
                 st.warning("Please add a product name.")
 
             
         st.write("##### Products:")
         for i, item in enumerate(st.session_state['items']):
-            check_name_col, details_col, remove_col = st.columns([1, 4.5, 1])
+            check_name_col, details_col, remove_col = st.columns([2, 3, 1])
             with check_name_col:
                 checked = st.checkbox(f"{item['name']}", value = item['checked'], key = f'item{i}')
             with details_col:
                 st.markdown('<p style="padding-top: 7px; color: grey;">' + f"{item['amount']} {item['unit']}, {item['expiry']}" + '</p>', unsafe_allow_html=True)
             with remove_col:
-                st.button("Remove", key=f"remove_ingredient{i}")
+                if st.button("Remove", key=f"remove_ingredient{i}"):
+                    remove_ingredient_from_db(item['name'])
+                    st.session_state['items'].pop(i)
+                    st.rerun()
             st.session_state['items'][i]['checked'] = checked
 
     with cart_tab:
@@ -80,17 +81,52 @@ with left_col:
         if st.button("Add", key = "add_grocery"):
             if product_name_buy:
                 st.session_state['groceries'].append({
-                    'name': product_name_buy, 
-                    'checked': False
+                    'name': product_name_buy
                 })
-                insert_grocery_item_to_db(product_name_buy)
+                insert_grocery_item(product_name_buy)
             else:
                 st.warning("Please add a product name.")
 
         st.write("##### Shopping List:")
         for i, item in enumerate(st.session_state['groceries']):
-            checked = st.checkbox(f"{item['name']}", value = item['checked'], key = f'grocery{i}')
-            st.session_state['groceries'][i]['checked'] = checked
+            name_col_shop, add_to_fridge_col, remove_col_shop = st.columns([3, 1, 1])
+            with name_col_shop:
+                st.markdown(f"<div style='padding-top: 6px;'>{item['name']}</div>", unsafe_allow_html=True)
+            with add_to_fridge_col:
+                if st.button("Prepare", key=f"prepare_grocery{i}"):
+                    st.session_state[f'show_inputs_{i}'] = True
+            with remove_col_shop:
+                if st.button("Remove", key=f"remove_grocery{i}"):
+                    remove_grocery_from_db(item['name'])
+                    st.session_state['groceries'].pop(i)
+                    st.rerun()
+                
+            if st.session_state.get(f'show_inputs_{i}', False):
+                amount_shop, unit_col, expiry_shop = st.columns([1, 1, 1])
+                with amount_shop:
+                    amount = st.text_input(f"Amount {item['name']}", key=f"amount_{i}", placeholder = "1")
+                with unit_col:
+                    unit = st.selectbox(f"Unit {item['name']}", ['litres', 'kilograms', 'grams', 'items'], key=f"unit_{i}")
+                with expiry_shop:
+                    expiry = st.date_input(f"Expiry date {item['name']}", key=f"expiry_{i}")
+                if st.button("Confirm", key=f"confirm_grocery{i}"):
+                    if amount:
+                        insert_ingredient(item['name'], amount, unit, expiry)
+                        # Updating the fridge list so that we don't have to reaload the table to see it 
+                        db_ingredients = get_ingredients()
+                        for ing in db_ingredients:
+                            st.session_state['items'].append({
+                                'name': ing[1],
+                                'amount': str(ing[2]),
+                                'unit': ing[3],
+                                'expiry': ing[4],
+                                'checked': False
+                            })
+                        remove_grocery_from_db(item['name'])
+                        st.session_state['groceries'].pop(i)
+                        st.rerun()
+                    else:
+                        st.warning("Please enter an amount before confirming.")
 
     with create_tab:
         create_tab.subheader("Create Recipe")
