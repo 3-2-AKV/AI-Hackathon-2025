@@ -4,11 +4,12 @@ from datetime import datetime
 from datetime import date
 import subprocess
 
+# Taking the current date - needed to check the spoiled items
 today_str = str(date.today())
 curr_date = datetime.strptime(today_str, "%Y-%m-%d")
 
 def sort_ingredients_by_expiration(ingredients):
-    # Sort ingredients by expiration date (index 4 assumed to be 'expiration_date')
+    # This function takes those items that are about to be expired (3 days or less left) as important, which might be added to the recipe
     important = []
     for i in ingredients:
         item_date = datetime.strptime(str(i['expiry']), "%Y-%m-%d")
@@ -23,7 +24,7 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
         return "Please select at least one ingredient."
     else:
         important = sort_ingredients_by_expiration(ingredients)
-        all_ing = [f"{i['name']} ({i['amount']} {i['unit']})" for i in ingredients]
+        all_ing = [f"{i['name']} ({i['amount']} {i['unit']})" for i in ingredients]  # Formatting
 
         # Compose the prompt
         prompt = (

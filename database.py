@@ -29,7 +29,7 @@ def create_db():
     conn.close()
 
 # Insert a new ingredient into the database
-def insert_ingredient(name, amount, unit, expiration_date):  # Needed ONLY FOR INGREDIENTS.PY, we do NOT use it anywhere else
+def insert_ingredient(name, amount, unit, expiration_date):
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
     c.execute('''INSERT INTO ingredients (name, amount, unit, expiration_date)
@@ -38,6 +38,7 @@ def insert_ingredient(name, amount, unit, expiration_date):  # Needed ONLY FOR I
     conn.commit()
     conn.close()
 
+# Insert an item to the shopping list database
 def insert_grocery_item(name):
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
@@ -47,6 +48,7 @@ def insert_grocery_item(name):
     conn.commit()
     conn.close()
 
+# Get all the items from the shopping list database
 def get_grocery_list():
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
@@ -55,6 +57,7 @@ def get_grocery_list():
     conn.close()
     return groceries
 
+# Remove an item from shopping list database
 def remove_grocery_from_db(name):
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
@@ -62,14 +65,22 @@ def remove_grocery_from_db(name):
     conn.commit()
     conn.close()
 
-# Retrieve all ingredients from the database
-def get_ingredients():  # Needed ONLY FOR MAIN PY when getting the STORED items into the items LIST in main.py
+# Get all ingredients from the fridge database
+def get_ingredients():
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
     c.execute('''SELECT * FROM ingredients''')
     ingredients = c.fetchall()
     conn.close()
     return ingredients
+
+# Remove an item from fridge database
+def remove_ingredient_from_db(name):
+    conn = sqlite3.connect('meal_planner.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM ingredients WHERE name = ?', (name,))
+    conn.commit()
+    conn.close()
 
 # Save a generated meal plan to the database
 def insert_meal_plan(meal_plan, ingredients_list, meal_type, days):  # WILL be needed for the MAIN PY after we make a REQUEST and get and answer from AI
@@ -78,12 +89,5 @@ def insert_meal_plan(meal_plan, ingredients_list, meal_type, days):  # WILL be n
     c.execute('''INSERT INTO meal_plans (meal_type, days, ingredients, meal_plan)
                  VALUES (?, ?, ?, ?)''',
               (meal_type, days, ', '.join(ingredients_list), meal_plan))
-    conn.commit()
-    conn.close()
-
-def remove_ingredient_from_db(name):
-    conn = sqlite3.connect('meal_planner.db')
-    c = conn.cursor()
-    c.execute('DELETE FROM ingredients WHERE name = ?', (name,))
     conn.commit()
     conn.close()
