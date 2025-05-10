@@ -3,6 +3,12 @@ import datetime
 from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db
 from meal_plans import generate_meal_plan
 import re
+from datetime import datetime
+from datetime import date
+
+# Taking the current date - needed to check the expired items
+today_str = str(date.today())
+curr_date = datetime.strptime(today_str, "%Y-%m-%d")
 
 create_db()  # Creat *three* databases from database.py: ingredients, meal_plans (for recipes), shopping_list (cart)
 
@@ -45,33 +51,66 @@ with left_col:
         with unit_col:
             product_unit = st.selectbox("Unit", ['litres', 'kilograms', 'grams', 'items'])
         with expiry_col:
-            expiry_date = st.date_input("Expiry date", value = datetime.date.today())
-        if st.button("Add", key = "add_ingredient"):  # Adding the item with all the entered parameters
-            if product_name:
-                st.session_state['items'].append({
-                    'name': product_name, 
-                    'amount': product_amount,
-                    'unit': product_unit,
-                    'expiry': expiry_date,
-                    'checked': False
-                })
-                insert_ingredient(product_name, product_amount, product_unit, expiry_date)
-            else:
-                st.warning("Please add a product name.")  # Must enter a product name
+            expiry_date = st.date_input("Expiry date", value = curr_date)
 
-        # Displaying the list of products in the fridge
-        st.write("##### Products:")
-        for i, item in enumerate(st.session_state['items']):
-            check_name_col, details_col, remove_col = st.columns([2, 3, 1])  # All in line
-            with check_name_col:
-                st.checkbox(f"{item['name']}", value = item['checked'], key = f'item{i}')
-            with details_col:
-                st.markdown('<p style="padding-top: 7px; color: grey;">' + f"{item['amount']} {item['unit']}, {item['expiry']}" + '</p>', unsafe_allow_html=True)
-            with remove_col:
-                if st.button("Remove", key=f"remove_ingredient{i}"):
-                    remove_ingredient_from_db(item['name'])  # Removing from database
-                    st.session_state['items'].pop(i)  # Removing from the list in the UI
-                    st.rerun()  # Instantly updating the list without having to refresh the page
+        add_col, show_exp_col = st.columns([3.5, 1])
+        with add_col:
+            if st.button("Add", key = "add_ingredient"):  # Adding the item with all the entered parameters
+                if product_name:
+                    st.session_state['items'].append({
+                        'name': product_name, 
+                        'amount': product_amount,
+                        'unit': product_unit,
+                        'expiry': expiry_date,
+                        'checked': False
+                    })
+                    insert_ingredient(product_name, product_amount, product_unit, expiry_date)
+                else:
+                    st.warning("Please add a product name.")  # Must enter a product name
+        with show_exp_col:
+            if st.button("Show Expired", key = "show_expired"):
+                expired_state = st.session_state.get('expired_list', False)
+                st.session_state['expired_list'] = not expired_state  # Toggling
+        
+        # Creating an array of the expired items only, KEEPING THEIR INDEX (idx) FROM THE ORIGINAL FRIDGE LIST - to delete correctly
+        expired_items = [(idx, item) for idx, item in enumerate(st.session_state['items'])
+        if (datetime.strptime(str(item['expiry']), "%Y-%m-%d") - curr_date).days < 0]
+
+        if st.session_state.get('expired_list', False):
+            if expired_items:  # Checking if there are any expired items at all
+                st.write("##### Expired products:")
+                for idx, item in expired_items:
+                    check_name_col, details_col, remove_col = st.columns([2, 3, 1])
+                    with check_name_col:
+                        st.checkbox(f"{item['name']}", value=item['checked'], key=f'item{idx}')
+                    with details_col:
+                        st.markdown(
+                            f"<span style='color: grey; position: relative; top: 7px;'>{item['amount']} {item['unit']}, </span>"
+                            f"<span style='color: orange; position: relative; top: 7px;'>{item['expiry']}</span>",
+                            unsafe_allow_html=True
+                        )
+                    with remove_col:
+                        if st.button("Remove", key=f"remove_ingredient{idx}"):
+                            remove_ingredient_from_db(item['name'])
+                            st.session_state['items'].pop(idx)
+                            st.rerun()
+            else:
+                st.write("You don't have any expired groceries!")
+        else:
+            # Displaying the list of products in the fridge
+            st.write("##### Products:")
+            for i, item in enumerate(st.session_state['items']):
+                check_name_col, details_col, remove_col = st.columns([2, 3, 1])  # All in line
+                with check_name_col:
+                    st.checkbox(f"{item['name']}", value = item['checked'], key = f'item{i}')
+                with details_col:
+                    st.markdown('<p style="padding-top: 7px; color: grey;">' + f"{item['amount']} {item['unit']}, {item['expiry']}" + '</p>', unsafe_allow_html=True)
+                with remove_col:
+                    if st.button("Remove", key=f"remove_ingredient{i}"):
+                        remove_ingredient_from_db(item['name'])  # Removing from database
+                        st.session_state['items'].pop(i)  # Removing from the list in the UI
+                        # st.rerun()  # Instantly updating the list without having to refresh the page
+
 
     with cart_tab:
         cart_tab.subheader("Your Shopping Cart")
@@ -88,7 +127,7 @@ with left_col:
 
         st.write("##### Shopping List:")
         for i, item in enumerate(st.session_state['groceries']):
-            name_col_shop, add_to_fridge_col, remove_col_shop = st.columns([3, 1, 1])
+            name_col_shop, add_to_fridge_col, remove_col_shop = st.columns([4, 1, 1])
             with name_col_shop:
                 st.markdown(f"<div style='padding-top: 6px;'>{item['name']}</div>", unsafe_allow_html=True)
             with add_to_fridge_col:
