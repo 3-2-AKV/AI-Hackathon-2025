@@ -5,6 +5,7 @@ from meal_plans import generate_meal_plan
 import re
 from datetime import datetime
 from datetime import date
+import json
 
 # Taking the current date - needed to check the expired items
 today_str = str(date.today())
@@ -195,13 +196,44 @@ with left_col:
         response = ''
         if st.button("Create the recipe", key = "create"):  # Receiving the answer from AI
             response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
+            
             # st.markdown(response)
+
 
 with right_col: 
     st.subheader("Recipes Output")
-    if response != '':
+    if response:
         # response = response["message"]["content"]
         # cleaned_content = re.sub(r"<think>.*?</think>\n?", "", response)
-        st.markdown(response)
-    else:  # If the response is empty, the user hasn't clicked "Create" yet
+        # st.markdown(response)
+        cleaned = response.strip()
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned)
+        cleaned = cleaned.replace("END", "").strip()
+
+        # 2) Grab just the JSON array
+        m = re.search(r"(\[.*\])", cleaned, flags=re.DOTALL)
+        if not m:
+            st.error("⚠️ Couldn't find a JSON array in the AI output:")
+            st.code(response)
+        else:
+            payload = m.group(1)
+            # 3) Safe JSON parsing
+            try:
+                recipes = json.loads(payload)
+            except json.JSONDecodeError:
+                st.error("⚠️ AI returned invalid JSON; here’s the raw output:")
+                st.code(response)
+            else:
+                # 4) Render each recipe
+                for r in recipes:
+                    st.header(r["name"])
+                    st.subheader("Ingredients")
+                    for ing in r["ingredients"]:
+                        st.write(f"- {ing}")
+                    st.subheader("Instructions")
+                    for i, step in enumerate(r["instructions"], 1):
+                        st.write(f"{i}. {step}")
+    else:
         st.write("Click “Create the recipe” to see your meal plan.")
+
+        

@@ -3,6 +3,7 @@ from transformers import pipeline
 from datetime import datetime
 from datetime import date
 import subprocess
+import json
 
 # Taking the current date - needed to check the spoiled items
 today_str = str(date.today())
@@ -28,6 +29,7 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
 
         # Compose the prompt
         prompt = (
+            "SYSTEM: You are a JSON-only generator. Output _only_ valid JSON.\n\n"
             f"You are a helpful meal planner assistant.\n\n"
             f"Generate {num_recipes} {meal_type} recipes using the following available ingredients "
             f"You must include these ingredients: {', '.join([i['name'] for i in checked_items])}.\n"
@@ -43,12 +45,29 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
             f"3. Easy-to-follow step-by-step cooking instructions\n\n"
             f"ONLY include information relevant to the recipe."
             f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
+            f"\n\nFinally, return exactly valid JSON (no extra commentary) in this form:\n"
+            "`[{`\n"
+            "  \"name\": \"<recipe title>\",\n"
+            "  \"ingredients\": [\n"
+            "    \"ingredient1 (amount unit)\",\n"
+            "    …\n"
+            "  ],\n"
+            "  \"instructions\": [\n"
+            "    \"Step 1…\",  \n"
+            "    …\n"
+            "  ]\n"
+            "`}]`\n"
+            "\n\nIMPORTANT: After you think, _end_ with strictly this schema and nothing else:\n"
+            "[\n"
+            "  {\"name\":\"Recipe Title\",\"ingredients\":[\"…\"],\"instructions\":[\"…\"]}\n"
+            "]\n"
+            "END\n"
         )
 
         try:
             # Launch Ollama process and send prompt via STDIN
             proc = subprocess.Popen(
-                ["ollama", "run", "deepseek-r1"],
+                ["ollama", "run", "gemma3"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -63,18 +82,19 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
                 return f"Error fetching recipe: {err}"
             else:
                 # Clean any stray tags
+                # cleaned = re.sub(r"<think>.*?</think>", "", stdout, flags=re.DOTALL)
                 cleaned = re.sub(r"<.*?>", "", stdout).strip()
-                cleaned = stdout.split("#", 1)[1].strip()
+                # cleaned = stdout.split("#", 1)[1].strip()
                 if not cleaned:
                     return "No response from the model. Try again or check your Ollama setup."
                 else:
                     return cleaned
 
         except subprocess.TimeoutExpired:
-            proc.kill()
-            return "The model took too long to respond. Please try again."
+                                    proc.kill()
+                                    return "The model took too long to respond. Please try again."
         except Exception as e:
-            return f"Unexpected error: {e}"
+                                    return f"Unexpected error: {e}"
             
 
         # Generate response using Hugging Face pipeline
