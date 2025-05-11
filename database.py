@@ -1,4 +1,10 @@
 import sqlite3
+import json
+from datetime import datetime
+from datetime import date
+
+# Taking the current date - for the recipe
+today_str = str(date.today())
 
 # Create the database and tables if they don't exist
 def create_db():
@@ -17,9 +23,10 @@ def create_db():
     c.execute('''CREATE TABLE IF NOT EXISTS meal_plans (
                     id INTEGER PRIMARY KEY,
                     meal_type TEXT NOT NULL,
-                    days INTEGER NOT NULL,
+                    meal_name TEXT NOT NULL,
                     ingredients TEXT NOT NULL,
-                    meal_plan TEXT NOT NULL)''')
+                    instructions TEXT NOT NULL,
+                    date TEXT NOT NULL)''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS shopping_list (
                     id INTEGER PRIMARY KEY,
@@ -82,12 +89,76 @@ def remove_ingredient_from_db(name):
     conn.commit()
     conn.close()
 
-# Save a generated meal plan to the database
-def insert_meal_plan(meal_plan, ingredients_list, meal_type, days):  # WILL be needed for the MAIN PY after we make a REQUEST and get and answer from AI
+def get_recipes_from_db():
     conn = sqlite3.connect('meal_planner.db')
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('''INSERT INTO meal_plans (meal_type, days, ingredients, meal_plan)
-                 VALUES (?, ?, ?, ?)''',
-              (meal_type, days, ', '.join(ingredients_list), meal_plan))
+    c.execute('SELECT * FROM meal_plans')
+    recipes = c.fetchall()
+    conn.close()
+    return recipes
+
+def save_recipes_to_db(response):
+    # Parse the JSON response
+    try:
+        recipe = json.loads(response)
+    except json.JSONDecodeError as e:
+        print("Invalid JSON:", e)
+        return
+
+    # Check that we got a dict, not a list
+    if not isinstance(recipe, dict):
+        print("Expected a single recipe as a JSON object.")
+        return
+
+    # Connect to SQLite database
+    conn = sqlite3.connect("meal_planner.db")
+    c = conn.cursor()
+
+    # Loop through each recipe and insert into DB
+    name = recipe.get("name", "Unnamed Recipe")
+    meal_type = recipe.get("type", "unspecified")
+    ingredients = '\n'.join(recipe.get("ingredients", []))  # Join list to string
+    instructions = '\n'.join(recipe.get("instructions", []))  # Join list to string
+    date = today_str
+
+    c.execute('''
+        INSERT INTO meal_plans (meal_type, meal_name, ingredients, instructions, date)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (meal_type, name, ingredients, instructions, date))
+
     conn.commit()
     conn.close()
+
+
+
+
+
+
+
+# def display_recipes_from_db():
+#     # Connect to SQLite database
+#     conn = sqlite3.connect("your_database_name.db")
+#     c = conn.cursor()
+
+#     # Retrieve all recipes from the database
+#     c.execute('SELECT meal_type, meal_name, ingredients, instructions FROM meal_plans')
+
+#     # Fetch all rows
+#     recipes = c.fetchall()
+
+#     if recipes:
+#         for recipe in recipes:
+#             meal_type, name, ingredients, instructions = recipe
+
+#             st.subheader(f"Meal Type: {meal_type}")
+#             st.header(f"Recipe Name: {name}")
+#             st.subheader("Ingredients:")
+#             st.write(ingredients)
+#             st.subheader("Instructions:")
+#             st.write(instructions)
+#             st.write("-" * 40)
+#     else:
+#         st.write("No recipes found in the database.")
+
+#     conn.close()

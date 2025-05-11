@@ -1,6 +1,6 @@
 import streamlit as st
 import datetime
-from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db
+from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db, save_recipes_to_db, get_recipes_from_db
 from meal_plans import generate_meal_plan
 import re
 from datetime import datetime
@@ -40,7 +40,7 @@ if 'groceries' not in st.session_state:
         })
 
 with left_col: 
-    ingred_tab, cart_tab, create_tab = st.tabs(["Ingredients", "Shopping Cart", "Create Recipe"])  # 3 separate tabs
+    ingred_tab, cart_tab, create_tab, cookbook_tab = st.tabs(["Ingredients", "Shopping Cart", "Create Recipe", "Cookbook"])  # 4 separate tabs
     with ingred_tab:
         ingred_tab.subheader("Ingredients You Have")
 
@@ -87,7 +87,7 @@ with left_col:
                     with details_col:
                         st.markdown(
                             f"<span style='color: grey; position: relative; top: 7px;'>{item['amount']} {item['unit']}, </span>"
-                            f"<span style='color: orange; position: relative; top: 7px;'>{item['expiry']}</span>",
+                            f"<span style='color: #e95952; position: relative; top: 7px;'>{item['expiry']}</span>",
                             unsafe_allow_html=True
                         )
                     with remove_col:
@@ -105,12 +105,25 @@ with left_col:
                 with check_name_col:
                     st.checkbox(f"{item['name']}", value = item['checked'], key = f'item{i}')
                 with details_col:
-                    st.markdown('<p style="padding-top: 7px; color: grey;">' + f"{item['amount']} {item['unit']}, {item['expiry']}" + '</p>', unsafe_allow_html=True)
+                    if 0 < (datetime.strptime(str(item['expiry']), "%Y-%m-%d") - curr_date).days <= 3:
+                        st.markdown(
+                            f"<span style='color: grey; position: relative; top: 7px;'>{item['amount']} {item['unit']}, </span>"
+                            f"<span style='color: #dea452; position: relative; top: 7px;'>{item['expiry']}</span>",
+                            unsafe_allow_html=True
+                        )
+                    elif (datetime.strptime(str(item['expiry']), "%Y-%m-%d") - curr_date).days <= 0:
+                        st.markdown(
+                            f"<span style='color: grey; position: relative; top: 7px;'>{item['amount']} {item['unit']}, </span>"
+                            f"<span style='color: #e95952; position: relative; top: 7px;'>{item['expiry']}</span>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown('<p style="padding-top: 7px; color: grey;">' + f"{item['amount']} {item['unit']}, {item['expiry']}" + '</p>', unsafe_allow_html=True)
                 with remove_col:
                     if st.button("Remove", key=f"remove_ingredient{i}"):
                         remove_ingredient_from_db(item['name'])  # Removing from database
                         st.session_state['items'].pop(i)  # Removing from the list in the UI
-                        # st.rerun()  # Instantly updating the list without having to refresh the page
+                        st.rerun()  # Instantly updating the list without having to refresh the page
 
 
     with cart_tab:
@@ -185,7 +198,7 @@ with left_col:
             line = ', '.join(f"{item['name']}" for item in checked_items)  # Line to display
         st.write(line)
 
-        num_col, type_col, empty1 = st.columns([1, 1, 1])
+        num_col, type_col, empty1 = st.columns([1, 1, 1])   
         with num_col:
             num_recipes = st.text_input("Number of recipes to create:", placeholder = "1")  # Passed to the prompt
         with type_col:
@@ -196,17 +209,27 @@ with left_col:
         response = ''
         if st.button("Create the recipe", key = "create"):  # Receiving the answer from AI
             response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
-            
+            st.session_state['response'] = response
             # st.markdown(response)
 
+    with cookbook_tab:
+        st.write("#### Your Saved Recipies")
+        all_recipes = get_recipes_from_db()
+        if all_recipes:
+            for i in all_recipes:
+                st.write(dict(i))
+                # st.write(i["meal_name"])
+                # st.write(i["date"])
+        else:
+            st.write("Nothing in your cookbook yet.")
 
 with right_col: 
     st.subheader("Recipes Output")
-    if response:
+    if 'response' in st.session_state:
         # response = response["message"]["content"]
         # cleaned_content = re.sub(r"<think>.*?</think>\n?", "", response)
         # st.markdown(response)
-        cleaned = response.strip()
+        cleaned = st.session_state['response'].strip()
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned)
         cleaned = cleaned.replace("END", "").strip()
 
@@ -214,7 +237,7 @@ with right_col:
         m = re.search(r"(\[.*\])", cleaned, flags=re.DOTALL)
         if not m:
             st.error("⚠️ Couldn't find a JSON array in the AI output:")
-            st.code(response)
+            st.code(st.session_state['response'])
         else:
             payload = m.group(1)
             # 3) Safe JSON parsing
@@ -222,17 +245,27 @@ with right_col:
                 recipes = json.loads(payload)
             except json.JSONDecodeError:
                 st.error("⚠️ AI returned invalid JSON; here’s the raw output:")
-                st.code(response)
+                st.code(st.session_state['response'])
             else:
                 # 4) Render each recipe
+                counter = -1
                 for r in recipes:
+                    counter += 1
                     st.header(r["name"])
+                    st.subheader(f"*{r["type"].capitalize()}*")
                     st.subheader("Ingredients")
                     for ing in r["ingredients"]:
                         st.write(f"- {ing}")
                     st.subheader("Instructions")
                     for i, step in enumerate(r["instructions"], 1):
                         st.write(f"{i}. {step}")
+                    if st.button("Add the recipe", key = f"add_recipy_{counter}"):
+                        # pass
+                    ## sends r to the database
+                        save_recipes_to_db(json.dumps(r)) 
+                        st.success(f"✅ '{r['name']}' added to database!")
+                        st.rerun()
+                        # st.write(r["name"])
     else:
         st.write("Click “Create the recipe” to see your meal plan.")
 

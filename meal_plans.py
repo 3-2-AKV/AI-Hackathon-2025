@@ -1,5 +1,4 @@
 import re
-from transformers import pipeline
 from datetime import datetime
 from datetime import date
 import subprocess
@@ -16,7 +15,10 @@ def sort_ingredients_by_expiration(ingredients):
         item_date = datetime.strptime(str(i['expiry']), "%Y-%m-%d")
         if -1 < (item_date - curr_date).days <= 3:
             important.append(i['name'])
-    return important
+    if len(important) > 0:    
+        return f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
+    else:
+        return " "
     
 
 def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, personal_preferences):
@@ -30,24 +32,27 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
         # Compose the prompt
         prompt = (
             "SYSTEM: You are a JSON-only generator. Output _only_ valid JSON.\n\n"
+            # "Whenever you mention temperatures, use the Unicode degree sign (°) followed by “C” (e.g. 180°C).\\n\\n"
             f"You are a helpful meal planner assistant.\n\n"
             f"Generate {num_recipes} {meal_type} recipes using the following available ingredients "
             f"You must include these ingredients: {', '.join([i['name'] for i in checked_items])}.\n"
-            f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
-            f"Use the specified amounts and units without exceeding them.\n"
+            f"{sort_ingredients_by_expiration(ingredients)}"
+            f"Use the needed amounts and units from what's provided without exceeding them. You don't have to use full amount of indgredients that's provided.\n"
             f"If you need to add any other ingredients apart from {', '.join([i['name'] for i in checked_items])}, you can use the ingredients from this list:"
             f"(each with quantity and unit):\n"
             f"{', '.join([i for i in all_ing])}.\n\n"
             f"Adapt recipes based on the following user preferences (e.g. allergies, preferred preparation methods, temperature): {personal_preferences}.\n\n"
             f"For each recipe, provide:\n"
             f"1. A clear name of the meal without any creative/strange titles (do not repeat the title twice)\n"
-            f"2. A list of ingredients with exact amounts and units\n"
-            f"3. Easy-to-follow step-by-step cooking instructions\n\n"
+            f"2. Meal type (breakfast, lunch, dinner, or dessert)\n"
+            f"3. A list of ingredients with exact amounts and units\n"
+            f"4. Easy-to-follow step-by-step cooking instructions\n\n"
             f"ONLY include information relevant to the recipe."
             f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
             f"\n\nFinally, return exactly valid JSON (no extra commentary) in this form:\n"
             "`[{`\n"
             "  \"name\": \"<recipe title>\",\n"
+            "  \"type\": \"<meal type>\",\n"
             "  \"ingredients\": [\n"
             "    \"ingredient1 (amount unit)\",\n"
             "    …\n"
@@ -84,17 +89,18 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
                 # Clean any stray tags
                 # cleaned = re.sub(r"<think>.*?</think>", "", stdout, flags=re.DOTALL)
                 cleaned = re.sub(r"<.*?>", "", stdout).strip()
+                fixed = cleaned.encode('latin-1').decode('utf-8')
                 # cleaned = stdout.split("#", 1)[1].strip()
-                if not cleaned:
+                if not fixed:
                     return "No response from the model. Try again or check your Ollama setup."
                 else:
-                    return cleaned
+                    return fixed
 
         except subprocess.TimeoutExpired:
-                                    proc.kill()
-                                    return "The model took too long to respond. Please try again."
+            proc.kill()
+            return "The model took too long to respond. Please try again."
         except Exception as e:
-                                    return f"Unexpected error: {e}"
+            return f"Unexpected error: {e}"
             
 
         # Generate response using Hugging Face pipeline
