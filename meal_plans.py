@@ -1,110 +1,109 @@
 import re
-from datetime import datetime
-from datetime import date
+from datetime import datetime, date
 import subprocess
 import json
+import sqlite3
+import pandas as pd
+import glob
+import os
+
+# 1) Connect (creates file if missing)
+conn = sqlite3.connect("food.db")
+
+# 2) Loop through every CSV in data/
+for path in glob.glob("data/*.csv"):
+    name = os.path.splitext(os.path.basename(path))[0].lower()
+    print(f"Loading {name}…")
+    df = pd.read_csv(path)
+    # Write to SQL table named after the file
+    df.to_sql(name, conn, if_exists="replace", index=False)
+
+conn.close()
 
 # Taking the current date - needed to check the spoiled items
 today_str = str(date.today())
 curr_date = datetime.strptime(today_str, "%Y-%m-%d")
 
 def sort_ingredients_by_expiration(ingredients):
-    # This function takes those items that are about to be expired (3 days or less left) as important, which might be added to the recipe
     important = []
     for i in ingredients:
         item_date = datetime.strptime(str(i['expiry']), "%Y-%m-%d")
         if -1 < (item_date - curr_date).days <= 3:
             important.append(i['name'])
-    if len(important) > 0:    
-        return f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
-    else:
-        return " "
-    
+    if important:
+        return f"Prioritize using ingredients that expire soon: {', '.join(important)}.\n"
+    return ""
+
+# --- New: Load recipe database for prompting ---
+def parse_r_vector(s: str):
+    """Turn a string like c("a","b","c") into ['a','b','c']."""
+    return re.findall(r'"([^\"]+)"', s)
+
+# Load your full recipe CSV
+RECIPES_DF = pd.read_csv("data/recipes.csv")
+RECIPES_DF["parts_list"] = RECIPES_DF["RecipeIngredientParts"].apply(parse_r_vector)
+RECIPES_DF["qty_list"] = RECIPES_DF["RecipeIngredientQuantities"].apply(parse_r_vector)
+RECIPES_DF["instr_list"] = RECIPES_DF["RecipeInstructions"].apply(parse_r_vector)
+
 
 def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, personal_preferences):
-    # Format all ingredients as strings with quantity and unit
+    # Ensure at least one ingredient is selected
     if not checked_items:
         return "Please select at least one ingredient."
-    else:
-        important = sort_ingredients_by_expiration(ingredients)
-        all_ing = [f"{i['name']} ({i['amount']} {i['unit']})" for i in ingredients]  # Formatting
 
-        # Compose the prompt
-        prompt = (
-            "SYSTEM: You are a JSON-only generator. Output _only_ valid JSON.\n\n"
-            # "Whenever you mention temperatures, use the Unicode degree sign (°) followed by “C” (e.g. 180°C).\\n\\n"
-            f"You are a helpful meal planner assistant.\n\n"
-            f"Generate {num_recipes} {meal_type} recipes using the following available ingredients "
-            f"You must include these ingredients: {', '.join([i['name'] for i in checked_items])}.\n"
-            f"{sort_ingredients_by_expiration(ingredients)}"
-            f"Use the needed amounts and units from what's provided without exceeding them. You don't have to use full amount of indgredients that's provided.\n"
-            f"If you need to add any other ingredients apart from {', '.join([i['name'] for i in checked_items])}, you can use the ingredients from this list:"
-            f"(each with quantity and unit):\n"
-            f"{', '.join([i for i in all_ing])}.\n\n"
-            f"Adapt recipes based on the following user preferences (e.g. allergies, preferred preparation methods, temperature): {personal_preferences}.\n\n"
-            f"For each recipe, provide:\n"
-            f"1. A clear name of the meal without any creative/strange titles (do not repeat the title twice)\n"
-            f"2. Meal type (breakfast, lunch, dinner, or dessert)\n"
-            f"3. A list of ingredients with exact amounts and units\n"
-            f"4. Easy-to-follow step-by-step cooking instructions\n\n"
-            f"ONLY include information relevant to the recipe."
-            f"Prioritize using ingredients that expire soon: {', '.join([i for i in important])}.\n"
-            f"\n\nFinally, return exactly valid JSON (no extra commentary) in this form:\n"
-            "`[{`\n"
-            "  \"name\": \"<recipe title>\",\n"
-            "  \"type\": \"<meal type>\",\n"
-            "  \"ingredients\": [\n"
-            "    \"ingredient1 (amount unit)\",\n"
-            "    …\n"
-            "  ],\n"
-            "  \"instructions\": [\n"
-            "    \"Step 1…\",  \n"
-            "    …\n"
-            "  ]\n"
-            "`}]`\n"
-            "\n\nIMPORTANT: After you think, _end_ with strictly this schema and nothing else:\n"
-            "[\n"
-            "  {\"name\":\"Recipe Title\",\"ingredients\":[\"…\"],\"instructions\":[\"…\"]}\n"
-            "]\n"
-            "END\n"
+    # Flag soon-to-expire items
+    important = sort_ingredients_by_expiration(ingredients)
+
+    # Build set of chosen ingredient names
+    have = {item['name'].lower() for item in checked_items}
+
+    # Filter recipe DB to those using at least one chosen ingredient
+    subset = []
+    for _, row in RECIPES_DF.iterrows():
+        parts_lower = [p.lower() for p in row['parts_list']]
+        if have & set(parts_lower):
+            ingr_list = [f"{q} {p}" for q, p in zip(row['qty_list'], row['parts_list'])]
+            subset.append({
+                "name": row.get('Name', 'Unnamed Recipe'),
+                "type": meal_type.lower(),
+                "ingredients": ingr_list,
+                "instructions": row['instr_list']
+            })
+
+    # Serialize filtered DB
+    db_json = json.dumps(subset, ensure_ascii=False)
+
+    # Compose prompt with embedded recipe DB
+    prompt = (
+        "SYSTEM: You are a JSON-only generator. Output _only_ valid JSON.\n\n"
+        f"Here is your recipe database (only recipes that use at least one chosen ingredient):\n{db_json}\n\n"
+        f"Generate exactly {num_recipes} {meal_type} recipe(s) by choosing and/or adapting from the recipes above. "
+        f"Follow this schema: [{{\"name\":\"…\",\"type\":\"…\",\"ingredients\":[\"…\"],\"instructions\":[\"…\"]}}]\n"
+        "END\n"
+    )
+
+    try:
+        proc = subprocess.Popen(
+            ["ollama", "run", "gemma3"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
+        stdout, stderr = proc.communicate(prompt, timeout=60)
 
-        try:
-            # Launch Ollama process and send prompt via STDIN
-            proc = subprocess.Popen(
-                ["ollama", "run", "gemma3"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            stdout, stderr = proc.communicate(prompt, timeout=60)
+        if proc.returncode != 0:
+            err = stderr.strip() or f"Exit code {proc.returncode}"
+            return f"Error fetching recipe: {err}"
 
-            # cleaned = re.sub(r"<think>.*?</think>", "", stdout, flags=re.DOTALL).strip()
+        # Clean up any tags
+        cleaned = re.sub(r"<.*?>", "", stdout).strip()
+        if not cleaned:
+            return "No response from the model. Try again or check your Ollama setup."
+        return prompt + cleaned
 
-            if proc.returncode != 0:
-                err = stderr.strip() or f"Exit code {proc.returncode}"
-                return f"Error fetching recipe: {err}"
-            else:
-                # Clean any stray tags
-                # cleaned = re.sub(r"<think>.*?</think>", "", stdout, flags=re.DOTALL)
-                cleaned = re.sub(r"<.*?>", "", stdout).strip()
-                fixed = cleaned.encode('latin-1').decode('utf-8')
-                # cleaned = stdout.split("#", 1)[1].strip()
-                if not fixed:
-                    return "No response from the model. Try again or check your Ollama setup."
-                else:
-                    return fixed
-
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            return "The model took too long to respond. Please try again."
-        except Exception as e:
-            return f"Unexpected error: {e}"
-            
-
-        # Generate response using Hugging Face pipeline
-        # generator = pipeline("text-generation", model="gpt2")
-        # response = generator(prompt, max_length=700, num_return_sequences=1)
-        
-        # return response[0]['generated_text']
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return "The model took too long to respond. Please try again."
+    except Exception as e:
+        return f"Unexpected error: {e}"
