@@ -7,3 +7,8 @@ __pycache__/
 
 # Ignore VS Code settings
 .vscode/
+
+# Ignore some db files
+recipes.db
+clean_recipes.json
+datasets
