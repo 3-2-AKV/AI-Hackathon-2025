@@ -40,20 +40,28 @@ if 'groceries' not in st.session_state:
             'name': groc[1]
         })
 
+if "reset_fields" in st.session_state and st.session_state.reset_fields:
+    st.session_state["input_name"] = ""
+    st.session_state["input_amount"] = ""
+    st.session_state["input_expiry"] = date.today()
+    st.session_state["input_unit"] = 'litres'
+    st.session_state["input_name_cart"] = ""
+    st.session_state["reset_fields"] = False  # Reset the flag
+
 with left_col: 
     ingred_tab, cart_tab, create_tab, cookbook_tab = st.tabs(["Ingredients", "Shopping Cart", "Create Recipe", "Cookbook"])  # 4 separate tabs
     with ingred_tab:
         ingred_tab.subheader("Ingredients You Have")
 
         # Input field for the ingridient + Add button
-        product_name = st.text_input("Add the product:", placeholder = 'Milk')
+        product_name = st.text_input("Add the product:", placeholder = 'Milk', key = "input_name")
         am_col, unit_col, expiry_col = st.columns([1, 1, 1])
         with am_col:
-            product_amount = st.text_input("Amount", placeholder = '2')
+            product_amount = st.text_input("Amount", placeholder = '2', key = "input_amount")
         with unit_col:
-            product_unit = st.selectbox("Unit", ['litres', 'kilograms', 'grams', 'items'])
+            product_unit = st.selectbox("Unit", ['litres', 'kilograms', 'grams', 'items'], key = "input_unit")
         with expiry_col:
-            expiry_date = st.date_input("Expiry date", value = curr_date)
+            expiry_date = st.date_input("Expiry date", key = "input_expiry")
 
         add_col, show_exp_col = st.columns([3.5, 1])
         with add_col:
@@ -67,6 +75,8 @@ with left_col:
                         'checked': False
                     })
                     insert_ingredient(product_name, product_amount, product_unit, expiry_date)
+                    st.session_state["reset_fields"] = True
+                    st.rerun()
                 else:
                     st.warning("Please add a product name.")  # Must enter a product name
         with show_exp_col:
@@ -93,21 +103,21 @@ with left_col:
                         )
                     with remove_col:
                         if st.button("Remove", key=f"remove_ingredient{idx}"):
-                            curr_state = st.session_state.get(f"confirm_delete_exp{i}", False)
-                            st.session_state[f"confirm_delete_exp{i}"] = not curr_state
+                            curr_state = st.session_state.get(f"confirm_delete_exp{idx}", False)
+                            st.session_state[f"confirm_delete_exp{idx}"] = not curr_state
                     
-                    if st.session_state.get(f"confirm_delete_exp{i}", False):
+                    if st.session_state.get(f"confirm_delete_exp{idx}", False):
                         st.warning(f"Are you sure you want to delete this expired ingredient?")
                         confirm_col, cancel_col = st.columns([1, 1])
                         with confirm_col:
-                            if st.button("Yes, delete", key=f"confirm_{i}"):
+                            if st.button("Yes, delete", key=f"confirm_{idx}"):
                                 remove_ingredient_from_db(item['name'])
-                                st.session_state.pop(f'confirm_delete_exp{i}', None)
+                                st.session_state.pop(f'confirm_delete_exp{idx}', None)
                                 st.session_state['items'].pop(idx)
                                 st.rerun()  # Instantly updating the list without having to refresh the page
                         with cancel_col:
-                            if st.button("Cancel", key=f"cancel_{i}"):
-                                del st.session_state[f"confirm_delete_exp{i}"]
+                            if st.button("Cancel", key=f"cancel_{idx}"):
+                                del st.session_state[f"confirm_delete_exp{idx}"]
                                 st.rerun()
             else:
                 st.write("##### Expired products:")
@@ -156,7 +166,7 @@ with left_col:
 
     with cart_tab:
         cart_tab.subheader("Your Shopping Cart")
-        product_name_buy = st.text_input("Add the product you plan to buy:", placeholder = 'Carrots')
+        product_name_buy = st.text_input("Add the product you plan to buy:", placeholder = 'Carrots', key = "input_name_cart")
 
         if st.button("Add", key = "add_grocery"):
             if product_name_buy:
@@ -164,6 +174,8 @@ with left_col:
                     'name': product_name_buy
                 })
                 insert_grocery_item(product_name_buy)  # Adding to the groceries database
+                st.session_state["reset_fields"] = True
+                st.rerun()
             else:
                 st.warning("Please add a product name.")
 
@@ -257,6 +269,7 @@ with left_col:
     with cookbook_tab:
         st.write("#### Your Saved Recipies")
         all_recipes = get_recipes_from_db()
+        sorted_data = sorted(all_recipes, key=lambda x: datetime.strptime(x["date"], "%Y-%m-%d"))
 
         st.write("##### Search through your cookbook")
         key_words = st.text_input("Key words or name of the recipe:", placeholder = "Chicken Salad")
@@ -293,7 +306,7 @@ with left_col:
                                 # Select a different one (toggle on)
                                 st.session_state["selected_recipe_index"] = countRecipes
 
-                    type_col, date_col, remove_col = st.columns([1, 6, 2.75])
+                    type_col, date_col, remove_col = st.columns([1.5, 6, 2.75])
                     with type_col:
                         st.caption(i[1])
                     with date_col:
@@ -332,6 +345,7 @@ with left_col:
             else:
                 list_of_type = []
                 for i in all_recipes:
+                    st.write(i[2])
                     if search_type.lower() == i[1]:
                             list_of_found.append(i)
                 for i in list_of_type:
