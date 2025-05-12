@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from datetime import date
 import json
+import pandas as pd
 
 # Taking the current date - needed to check the expired items
 today_str = str(date.today())
@@ -92,10 +93,24 @@ with left_col:
                         )
                     with remove_col:
                         if st.button("Remove", key=f"remove_ingredient{idx}"):
-                            remove_ingredient_from_db(item['name'])
-                            st.session_state['items'].pop(idx)
-                            st.rerun()
+                            curr_state = st.session_state.get(f"confirm_delete_exp{i}", False)
+                            st.session_state[f"confirm_delete_exp{i}"] = not curr_state
+                    
+                    if st.session_state.get(f"confirm_delete_exp{i}", False):
+                        st.warning(f"Are you sure you want to delete this expired ingredient?")
+                        confirm_col, cancel_col = st.columns([1, 1])
+                        with confirm_col:
+                            if st.button("Yes, delete", key=f"confirm_{i}"):
+                                remove_ingredient_from_db(item['name'])
+                                st.session_state.pop(f'confirm_delete_exp{i}', None)
+                                st.session_state['items'].pop(idx)
+                                st.rerun()  # Instantly updating the list without having to refresh the page
+                        with cancel_col:
+                            if st.button("Cancel", key=f"cancel_{i}"):
+                                del st.session_state[f"confirm_delete_exp{i}"]
+                                st.rerun()
             else:
+                st.write("##### Expired products:")
                 st.write("You don't have any expired groceries!")
         else:
             # Displaying the list of products in the fridge
@@ -121,9 +136,22 @@ with left_col:
                         st.markdown('<p style="padding-top: 7px; color: grey;">' + f"{item['amount']} {item['unit']}, {item['expiry']}" + '</p>', unsafe_allow_html=True)
                 with remove_col:
                     if st.button("Remove", key=f"remove_ingredient{i}"):
-                        remove_ingredient_from_db(item['name'])  # Removing from database
-                        st.session_state['items'].pop(i)  # Removing from the list in the UI
-                        st.rerun()  # Instantly updating the list without having to refresh the page
+                        curr_state = st.session_state.get(f"confirm_delete_ing{i}", False)
+                        st.session_state[f"confirm_delete_ing{i}"] = not curr_state
+                
+                if st.session_state.get(f"confirm_delete_ing{i}", False):
+                    st.warning(f"Are you sure you want to delete this ingredient?")
+                    confirm_col, cancel_col = st.columns([1, 1])
+                    with confirm_col:
+                        if st.button("Yes, delete", key=f"confirm_{i}"):
+                            remove_ingredient_from_db(item['name'])  # Removing from database
+                            st.session_state.pop(f'confirm_delete_ing{i}', None)
+                            st.session_state['items'].pop(i)  # Removing from the list in the UI
+                            st.rerun()  # Instantly updating the list without having to refresh the page
+                    with cancel_col:
+                        if st.button("Cancel", key=f"cancel_{i}"):
+                            del st.session_state[f"confirm_delete_ing{i}"]
+                            st.rerun()
 
 
     with cart_tab:
@@ -151,9 +179,23 @@ with left_col:
                     st.session_state[f'show_inputs_{i}'] = not current_state  # Toggling
             with remove_col_shop:
                 if st.button("Remove", key=f"remove_grocery{i}"):  # In case you decided not to buy the item - remove from shopping list
-                    remove_grocery_from_db(item['name'])  # Remove from db
-                    st.session_state['groceries'].pop(i)  # Remove from list in the UI
-                    st.rerun()
+                    curr_state = st.session_state.get(f"confirm_delete_groc{i}", False)
+                    st.session_state[f"confirm_delete_groc{i}"] = not curr_state
+                
+            if st.session_state.get(f"confirm_delete_groc{i}", False):
+                st.warning(f"Are you sure you want to delete this ingredient?")
+                confirm_col, cancel_col = st.columns([1, 1])
+                with confirm_col:
+                    if st.button("Yes, delete", key=f"confirm_{i}"):
+                        remove_grocery_from_db(item['name'])  # Remove from db
+                        st.session_state.pop(f'confirm_delete_groc{i}', None)
+                        st.session_state['groceries'].pop(i)  # Remove from list in the UI
+                        st.rerun()  # Instantly updating the list without having to refresh the page
+                with cancel_col:
+                    if st.button("Cancel", key=f"cancel_{i}"):
+                        del st.session_state[f"confirm_delete_groc{i}"]
+                        st.rerun()
+
                 
             if st.session_state.get(f'show_inputs_{i}', False):  # Showing the details drop-down if "Prepare" button was clicked
                 amount_shop, unit_col, expiry_shop = st.columns([1, 1, 1])
@@ -202,7 +244,7 @@ with left_col:
         with num_col:
             num_recipes = st.text_input("Number of recipes to create:", placeholder = "1")  # Passed to the prompt
         with type_col:
-            meal_type = st.selectbox("Type of meal:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"])  # Passed to the prompt
+            meal_type = st.selectbox("Meal type:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"])  # Passed to the prompt
         personal_preferences = st.text_input("Specify any preferences (e.g. allergies, preferred preparation methods, temperature):")  # Passed to the prompt
 
         # important = sort_ingredients_by_expiration(st.session_state['items'])
@@ -215,16 +257,139 @@ with left_col:
     with cookbook_tab:
         st.write("#### Your Saved Recipies")
         all_recipes = get_recipes_from_db()
-        if all_recipes:
-            for i in all_recipes:
-                st.write(dict(i))
-                # st.write(i["meal_name"])
-                # st.write(i["date"])
+
+        st.write("##### Search through your cookbook")
+        key_words = st.text_input("Key words or name of the recipe:", placeholder = "Chicken Salad")
+        search_type_col, empty = st.columns([2, 5])
+        with search_type_col:
+            search_type = st.selectbox("Meal type:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"], key = "search_recipe_type")
+
+        search_btn_col, showall_btn_col = st.columns([3, 1])
+        with search_btn_col:
+            if st.button("Search", key = "search_recipes_inputted"):
+                st.session_state["show_search_recipes"] = True
+                st.session_state["show_all_recipes"] = False
+        with showall_btn_col:
+            if st.button("Show All Recipes", key = "show_all_recipes_res"):
+                st.session_state["show_search_recipes"] = False
+                st.session_state["show_all_recipes"] = True
+        st.divider()
+        st.write("#### Recipes")
+
+        if st.session_state.get("show_all_recipes", False):
+            if all_recipes:
+                countRecipes = 0
+                for i in all_recipes:
+                    name_col, show_col = st.columns([3, 1])
+                    current_selected_show_recipe = st.session_state.get("selected_recipe_index", None)  # For showing recipes button
+                    with name_col:
+                        st.write(f"##### {i[2]}")
+                    with show_col:
+                        if st.button("Show Recipe", key = f"show_{countRecipes}"):
+                            if current_selected_show_recipe == countRecipes:
+                                # If already selected, unselect (toggle off)
+                                st.session_state["selected_recipe_index"] = None
+                            else:
+                                # Select a different one (toggle on)
+                                st.session_state["selected_recipe_index"] = countRecipes
+
+                    type_col, date_col, remove_col = st.columns([1, 6, 2.75])
+                    with type_col:
+                        st.caption(i[1])
+                    with date_col:
+                        st.caption(i[5])
+                    with remove_col:
+                        if st.button("Remove Recipe", key = f"remove_rec_{countRecipes}"):
+                            curr_state = st.session_state.get(f"confirm_delete_recipe{countRecipes}", False)
+                            st.session_state[f"confirm_delete_recipe{countRecipes}"] = not curr_state
+                    
+                    if st.session_state.get(f"confirm_delete_recipe{countRecipes}", False):
+                        st.warning(f"Are you sure you want to delete this recipe from your cookbook?")
+                        confirm_col, cancel_col = st.columns([1, 1])
+                        with confirm_col:
+                            if st.button("Yes, delete", key=f"confirm_{countRecipes}"):
+                                # delete_item_from_db(item["name"])
+                                del st.session_state[f"confirm_delete_recipe{countRecipes}"]
+                                st.rerun()
+                        with cancel_col:
+                            if st.button("Cancel", key=f"cancel_{countRecipes}"):
+                                del st.session_state[f"confirm_delete_recipe{countRecipes}"]
+                                st.rerun()
+
+                    split_ingredients = re.findall(r'.+?\([^)]*\)(?: \(using soonest\))?', i[3])
+                    formatted = "<br>".join(split_ingredients)
+                    st.markdown(formatted, unsafe_allow_html=True)
+                    st.divider()
+                    countRecipes += 1
+            else:
+                st.write("No recipes in your cookbook yet.")
+        elif st.session_state.get("show_search_recipes", False):
+            list_of_found = []
+            if search_type == "Any":
+                for i in all_recipes:
+                        if key_words.lower() in i[2].lower():
+                            list_of_found.append(i)
+            else:
+                list_of_type = []
+                for i in all_recipes:
+                    if search_type.lower() == i[1]:
+                            list_of_found.append(i)
+                for i in list_of_type:
+                    if key_words.lower() in i[2].lower():
+                        list_of_found.append(i)
+            if list_of_found:
+                countRecipes = 0
+                for i in list_of_found:
+                    name_col, show_col = st.columns([3, 1])
+                    current_selected_show_recipe = st.session_state.get("selected_recipe_index", None)  # For showing recipes button
+                    with name_col:
+                        st.write(f"##### {i[2]}")
+                    with show_col:
+                        if st.button("Show Recipe", key = f"show_{countRecipes}"):
+                            if current_selected_show_recipe == countRecipes:
+                                # If already selected, unselect (toggle off)
+                                st.session_state["selected_recipe_index"] = None
+                            else:
+                                # Select a different one (toggle on)
+                                st.session_state["selected_recipe_index"] = countRecipes
+
+                    type_col, date_col, remove_col = st.columns([1, 6, 2.75])
+                    with type_col:
+                        st.caption(i[1])
+                    with date_col:
+                        st.caption(i[5])
+                    with remove_col:
+                        if st.button("Remove Recipe", key = f"remove_rec_{countRecipes}"):
+                            curr_state = st.session_state.get(f"confirm_delete_recipe{countRecipes}", False)
+                            st.session_state[f"confirm_delete_recipe{countRecipes}"] = not curr_state
+                    
+                    if st.session_state.get(f"confirm_delete_recipe{countRecipes}", False):
+                        st.warning(f"Are you sure you want to delete this recipe from your cookbook?")
+                        confirm_col, cancel_col = st.columns([1, 1])
+                        with confirm_col:
+                            if st.button("Yes, delete", key=f"confirm_{countRecipes}"):
+                                # delete_item_from_db(item["name"])
+                                del st.session_state[f"confirm_delete_recipe{countRecipes}"]
+                                st.rerun()
+                        with cancel_col:
+                            if st.button("Cancel", key=f"cancel_{countRecipes}"):
+                                del st.session_state[f"confirm_delete_recipe{countRecipes}"]
+                                st.rerun()
+
+                    split_ingredients = re.findall(r'.+?\([^)]*\)(?: \(using soonest\))?', i[3])
+                    formatted = "<br>".join(split_ingredients)
+                    st.markdown(formatted, unsafe_allow_html=True)
+                    st.divider()
+                    countRecipes += 1
+            else:
+                st.write("Looks like there are no recipes with such parameters...")
         else:
-            st.write("Nothing in your cookbook yet.")
+            st.write('Click "Show All Recipes" or enter your search parameters to display your cookbook.')
 
 with right_col: 
     st.subheader("Recipes Output")
+
+    selected_index = st.session_state.get("selected_recipe_index")
     if 'response' in st.session_state:
         # response = response["message"]["content"]
         # cleaned_content = re.sub(r"<think>.*?</think>\n?", "", response)
@@ -252,7 +417,7 @@ with right_col:
                 for r in recipes:
                     counter += 1
                     st.header(r["name"])
-                    st.subheader(f"*{r["type"].capitalize()}*")
+                    st.caption(f"*{r['type'].capitalize()}*")
                     st.subheader("Ingredients")
                     for ing in r["ingredients"]:
                         st.write(f"- {ing}")
@@ -266,6 +431,18 @@ with right_col:
                         st.success(f"✅ '{r['name']}' added to database!")
                         st.rerun()
                         # st.write(r["name"])
+    elif selected_index is not None and 0 <= selected_index < len(all_recipes):
+        selected = all_recipes[selected_index]
+        st.subheader(f"{selected[2]}")
+        st.caption(f"*{selected[1].capitalize()}*")
+
+        st.markdown("**Ingredients**")
+        split_ingredients = re.findall(r'.+?\([^)]*\)(?: \(using soonest\))?', selected[3])
+        formatted = "<br>".join(split_ingredients)
+        st.markdown(formatted, unsafe_allow_html=True)
+
+        st.markdown("**Instructions**")
+        st.markdown(selected[4])
     else:
         st.write("Click “Create the recipe” to see your meal plan.")
 
