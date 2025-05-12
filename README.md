@@ -2,6 +2,7 @@
 
 ## Cookbook tab fixes:
 1. Add the date when the recipy was added - DONE
+
 2. Name of the recipe -> click -> recipe on the right side should appear
 3. In the table columns: name, type, indgredients, date
 4. Check if possible to limit characters for ingredients 
