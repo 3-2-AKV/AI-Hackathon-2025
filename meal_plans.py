@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from datetime import date
 import subprocess
+from existing_recipies import get_best_matching_recipes
 import json
 
 # Taking the current date - needed to check the spoiled items
@@ -29,11 +30,27 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
         important = sort_ingredients_by_expiration(ingredients)
         all_ing = [f"{i['name']} ({i['amount']} {i['unit']})" for i in ingredients]  # Formatting
 
+        input_ingredient_names = [i['name'] for i in checked_items]
+        top_matches = get_best_matching_recipes(input_ingredient_names)
+        reference_recipes_str = ""
+        for match in top_matches:
+            reference_recipes_str += f"- {match['name']}:\n"
+            reference_recipes_str += f"  Ingredients: {', '.join(match['ingredients'])}\n"
+
+            # Ensure steps is always a list
+            steps = match.get('steps', [])
+            if not isinstance(steps, list):  # If it's not a list, set it to a default list
+                steps = ["No steps available."]
+            # Now proceed to use steps safely
+            reference_recipes_str += f"  Steps: {' '.join(steps)}\n\n"
+
         # Compose the prompt
         prompt = (
             "SYSTEM: You are a JSON-only generator. Output _only_ valid JSON.\n\n"
             # "Whenever you mention temperatures, use the Unicode degree sign (°) followed by “C” (e.g. 180°C).\\n\\n"
             f"You are a helpful meal planner assistant.\n\n"
+            f"Here are 3 example recipes:\n\n"
+            f"{reference_recipes_str}\n\n"
             f"Generate {num_recipes} {meal_type} recipes using the following available ingredients "
             f"You must include these ingredients: {', '.join([i['name'] for i in checked_items])}.\n"
             f"{sort_ingredients_by_expiration(ingredients)}"
@@ -89,12 +106,12 @@ def generate_meal_plan(ingredients, meal_type, num_recipes, checked_items, perso
                 # Clean any stray tags
                 # cleaned = re.sub(r"<think>.*?</think>", "", stdout, flags=re.DOTALL)
                 cleaned = re.sub(r"<.*?>", "", stdout).strip()
-                fixed = cleaned.encode('latin-1').decode('utf-8')
+                # fixed = cleaned.encode('latin-1').decode('utf-8')
                 # cleaned = stdout.split("#", 1)[1].strip()
-                if not fixed:
+                if not cleaned:
                     return "No response from the model. Try again or check your Ollama setup."
                 else:
-                    return fixed
+                    return prompt + cleaned
 
         except subprocess.TimeoutExpired:
             proc.kill()
