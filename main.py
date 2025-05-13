@@ -1,7 +1,7 @@
 import streamlit as st
 import datetime
 from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db, save_recipes_to_db, get_recipes_from_db, remove_recipe_from_db
-from meal_plans import generate_meal_plan
+from recipe_gen import generate_meal_plan
 import re
 from datetime import datetime
 from datetime import date
@@ -16,6 +16,8 @@ create_db()  # Creat *three* databases from database.py: ingredients, meal_plans
 
 # Diving the page in two sides
 st.set_page_config(layout="wide")
+#centred title
+st.title("ouiRcookd")
 left_col, right_col = st.columns([1,1])
 
 # Inilializing where we'll store items and if they are ticked to be in the recipe or not
@@ -24,6 +26,7 @@ if 'items' not in st.session_state:
     db_ingredients = get_ingredients()  # Getting from database - to have everything stored after reloading the page
     for ing in db_ingredients:
         st.session_state['items'].append({
+            'id': ing[0],
             'name': ing[1],
             'amount': str(ing[2]),
             'unit': ing[3],
@@ -48,13 +51,15 @@ if "reset_fields" in st.session_state and st.session_state.reset_fields:
     st.session_state["input_name_cart"] = ""
     st.session_state["reset_fields"] = False  # Reset the flag
 
+
+
 with left_col: 
     ingred_tab, cart_tab, create_tab, cookbook_tab = st.tabs(["Ingredients", "Shopping Cart", "Create Recipe", "Cookbook"])  # 4 separate tabs
     with ingred_tab:
         ingred_tab.subheader("Ingredients You Have")
 
         # Input field for the ingridient + Add button
-        product_name = st.text_input("Add the product:", placeholder = 'Milk', key = "input_name")
+        product_name = st.text_input("Add the product:", placeholder = 'Milk', key = "input_name").capitalize()
         am_col, unit_col, expiry_col = st.columns([1, 1, 1])
         with am_col:
             product_amount = st.text_input("Amount", placeholder = '2', key = "input_amount")
@@ -68,6 +73,7 @@ with left_col:
             if st.button("Add", key = "add_ingredient"):  # Adding the item with all the entered parameters
                 if product_name:
                     st.session_state['items'].append({
+                        'id': len(st.session_state['items']),
                         'name': product_name, 
                         'amount': product_amount,
                         'unit': product_unit,
@@ -111,10 +117,14 @@ with left_col:
                         confirm_col, cancel_col = st.columns([1, 1])
                         with confirm_col:
                             if st.button("Yes, delete", key=f"confirm_{idx}"):
-                                remove_ingredient_from_db(item['name'])
-                                st.session_state.pop(f'confirm_delete_exp{idx}', None)
-                                st.session_state['items'].pop(idx)
-                                st.rerun()  # Instantly updating the list without having to refresh the page
+                                target_id = item['id']
+                                remove_ingredient_from_db(target_id)
+                                st.session_state.pop(f"confirm_delete_exp_{item['id']}", None)
+                                st.session_state['items'] = [
+                                    item for item in st.session_state['items']
+                                    if item['id'] != target_id
+                                ]
+                                st.rerun()
                         with cancel_col:
                             if st.button("Cancel", key=f"cancel_{idx}"):
                                 del st.session_state[f"confirm_delete_exp{idx}"]
@@ -154,9 +164,13 @@ with left_col:
                     confirm_col, cancel_col = st.columns([1, 1])
                     with confirm_col:
                         if st.button("Yes, delete", key=f"confirm_{i}"):
-                            remove_ingredient_from_db(item['name'])  # Removing from database
-                            st.session_state.pop(f'confirm_delete_ing{i}', None)
-                            st.session_state['items'].pop(i)  # Removing from the list in the UI
+                            target_id = item['id']
+                            remove_ingredient_from_db(target_id)
+                            st.session_state.pop(f"confirm_delete_exp_{item['id']}", None)
+                            st.session_state['items'] = [
+                                item for item in st.session_state['items']
+                                if item['id'] != target_id
+                            ]
                             st.rerun()  # Instantly updating the list without having to refresh the page
                     with cancel_col:
                         if st.button("Cancel", key=f"cancel_{i}"):
@@ -254,7 +268,7 @@ with left_col:
 
         num_col, type_col, empty1 = st.columns([1, 1, 1])   
         with num_col:
-            num_recipes = st.text_input("Number of recipes to create:", placeholder = "1")  # Passed to the prompt
+            num_recipes = st.text_input("Number of recipes to create:", placeholder = "3")  # Passed to the prompt
         with type_col:
             meal_type = st.selectbox("Meal type:", ["Any", "Breakfast", "Lunch", "Dinner", "Dessert"])  # Passed to the prompt
         personal_preferences = st.text_input("Specify any preferences (e.g. allergies, preferred preparation methods, temperature):")  # Passed to the prompt
@@ -263,7 +277,7 @@ with left_col:
         response = ''
         if st.button("Create the recipe", key = "create"):  # Receiving the answer from AI
             if 2 < int(num_recipes) < 13:
-                response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
+                response = generate_meal_plan(st.session_state['items'], st.session_state['groceries'], meal_type, num_recipes, checked_items, personal_preferences)
                 st.session_state['response'] = response
             else:
                 st.warning("Please choose a number of recipes between 3 and 12.")
@@ -271,7 +285,7 @@ with left_col:
     with cookbook_tab:
         st.write("#### Your Saved Recipies")
         all_recipes = get_recipes_from_db()
-        sorted_data = sorted(all_recipes, key=lambda x: datetime.strptime(x["date"], "%Y-%m-%d"))
+        all_recipes = sorted(all_recipes, key=lambda x: datetime.strptime(x["date"], "%Y-%m-%d"), reverse = True)
 
         st.write("##### Search through your cookbook")
         key_words = st.text_input("Key words or name of the recipe:", placeholder = "Chicken Salad")
@@ -436,7 +450,7 @@ with right_col:
                         st.write(f"{i}. {step}")
                     if st.button("Add the recipe", key = f"add_recipy_{counter}"):
                         save_recipes_to_db(json.dumps(r)) 
-                        st.success(f"✅ '{r['name']}' added to database!")
+                        st.success(f"✅ \"{r['name']}\" added to database!")
     elif selected_index is not None and 0 <= selected_index < len(all_recipes):
         selected = all_recipes[selected_index]
         st.subheader(f"{selected[2]}")

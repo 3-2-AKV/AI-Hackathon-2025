@@ -82,10 +82,10 @@ def get_ingredients():
     return ingredients
 
 # Remove an item from fridge database
-def remove_ingredient_from_db(name):
+def remove_ingredient_from_db(id):
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
-    c.execute('DELETE FROM ingredients WHERE name = ?', (name,))
+    c.execute('DELETE FROM ingredients WHERE id = ?', (id,))
     conn.commit()
     conn.close()
 
