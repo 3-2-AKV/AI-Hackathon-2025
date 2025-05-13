@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db, save_recipes_to_db, get_recipes_from_db
 from meal_plans import generate_meal_plan
+import existing_recipies
 import re
 from datetime import datetime
 from datetime import date
@@ -9,6 +10,7 @@ import json
 import pandas as pd
 
 # Taking the current date - needed to check the expired items
+existing_recipies.process_recipes()
 today_str = str(date.today())
 curr_date = datetime.strptime(today_str, "%Y-%m-%d")
 
