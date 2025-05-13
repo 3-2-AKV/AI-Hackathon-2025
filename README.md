@@ -14,3 +14,6 @@
 
 💡Idea: Cookbook ai search with descriptions - you just say in the input what you want to have in the recipe and the AI searches through our cookbook and prints everything that might match.
 
+
+Datasets to download:
+- https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions?resource=download&select=RAW_recipes.csv
