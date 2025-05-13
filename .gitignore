@@ -10,5 +10,5 @@ __pycache__/
 
 # Ignore some db files
 # recipes.db
-clean_recipes.json
+# clean_recipes.json
 datasets
