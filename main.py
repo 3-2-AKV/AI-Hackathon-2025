@@ -1,6 +1,6 @@
 import streamlit as st
 import datetime
-from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db, save_recipes_to_db, get_recipes_from_db
+from database import create_db, insert_ingredient, insert_grocery_item, get_grocery_list, get_ingredients, remove_ingredient_from_db, remove_grocery_from_db, save_recipes_to_db, get_recipes_from_db, remove_recipe_from_db
 from meal_plans import generate_meal_plan
 import re
 from datetime import datetime
@@ -321,7 +321,7 @@ with left_col:
                         confirm_col, cancel_col = st.columns([1, 1])
                         with confirm_col:
                             if st.button("Yes, delete", key=f"confirm_{countRecipes}"):
-                                # delete_item_from_db(item["name"])
+                                remove_recipe_from_db(i[2])
                                 del st.session_state[f"confirm_delete_recipe{countRecipes}"]
                                 st.rerun()
                         with cancel_col:
@@ -382,7 +382,7 @@ with left_col:
                         confirm_col, cancel_col = st.columns([1, 1])
                         with confirm_col:
                             if st.button("Yes, delete", key=f"confirm_{countRecipes}"):
-                                # delete_item_from_db(item["name"])
+                                remove_recipe_from_db(i[2])
                                 del st.session_state[f"confirm_delete_recipe{countRecipes}"]
                                 st.rerun()
                         with cancel_col:

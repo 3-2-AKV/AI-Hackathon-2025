@@ -130,35 +130,9 @@ def save_recipes_to_db(response):
     conn.commit()
     conn.close()
 
-
-
-
-
-
-
-# def display_recipes_from_db():
-#     # Connect to SQLite database
-#     conn = sqlite3.connect("your_database_name.db")
-#     c = conn.cursor()
-
-#     # Retrieve all recipes from the database
-#     c.execute('SELECT meal_type, meal_name, ingredients, instructions FROM meal_plans')
-
-#     # Fetch all rows
-#     recipes = c.fetchall()
-
-#     if recipes:
-#         for recipe in recipes:
-#             meal_type, name, ingredients, instructions = recipe
-
-#             st.subheader(f"Meal Type: {meal_type}")
-#             st.header(f"Recipe Name: {name}")
-#             st.subheader("Ingredients:")
-#             st.write(ingredients)
-#             st.subheader("Instructions:")
-#             st.write(instructions)
-#             st.write("-" * 40)
-#     else:
-#         st.write("No recipes found in the database.")
-
-#     conn.close()
+def remove_recipe_from_db(name):
+    conn = sqlite3.connect('meal_planner.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM meal_plans WHERE meal_name = ?', (name,))
+    conn.commit()
+    conn.close()
