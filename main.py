@@ -262,9 +262,11 @@ with left_col:
         # important = sort_ingredients_by_expiration(st.session_state['items'])
         response = ''
         if st.button("Create the recipe", key = "create"):  # Receiving the answer from AI
-            response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
-            st.session_state['response'] = response
-            # st.markdown(response)
+            if 2 < int(num_recipes) < 13:
+                response = generate_meal_plan(st.session_state['items'], meal_type, num_recipes, checked_items, personal_preferences)
+                st.session_state['response'] = response
+            else:
+                st.warning("Please choose a number of recipes between 3 and 12.")
 
     with cookbook_tab:
         st.write("#### Your Saved Recipies")
@@ -405,28 +407,22 @@ with right_col:
 
     selected_index = st.session_state.get("selected_recipe_index")
     if 'response' in st.session_state:
-        # response = response["message"]["content"]
-        # cleaned_content = re.sub(r"<think>.*?</think>\n?", "", response)
-        # st.markdown(response)
         cleaned = st.session_state['response'].strip()
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned)
         cleaned = cleaned.replace("END", "").strip()
 
-        # 2) Grab just the JSON array
         m = re.search(r"(\[.*\])", cleaned, flags=re.DOTALL)
         if not m:
             st.error("⚠️ Couldn't find a JSON array in the AI output:")
             st.code(st.session_state['response'])
         else:
             payload = m.group(1)
-            # 3) Safe JSON parsing
             try:
                 recipes = json.loads(payload)
             except json.JSONDecodeError:
                 st.error("⚠️ AI returned invalid JSON; here’s the raw output:")
                 st.code(st.session_state['response'])
             else:
-                # 4) Render each recipe
                 counter = -1
                 for r in recipes:
                     counter += 1
@@ -439,12 +435,8 @@ with right_col:
                     for i, step in enumerate(r["instructions"], 1):
                         st.write(f"{i}. {step}")
                     if st.button("Add the recipe", key = f"add_recipy_{counter}"):
-                        # pass
-                    ## sends r to the database
                         save_recipes_to_db(json.dumps(r)) 
                         st.success(f"✅ '{r['name']}' added to database!")
-                        st.rerun()
-                        # st.write(r["name"])
     elif selected_index is not None and 0 <= selected_index < len(all_recipes):
         selected = all_recipes[selected_index]
         st.subheader(f"{selected[2]}")
