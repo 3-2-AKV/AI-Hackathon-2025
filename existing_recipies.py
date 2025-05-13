@@ -32,6 +32,10 @@ recipes_df = pd.merge(recipes_df, ratings_summary, on='id', how='left')
 recipes_df['average_rating'] = recipes_df['average_rating'].fillna(0).round(0).astype(int)
 recipes_df['num_ratings'] = recipes_df['num_ratings'].fillna(0).astype(int)
 
+
+# Filter out recipes with fewer than 20 ratings
+recipes_df = recipes_df[recipes_df['num_ratings'] >= 20]
+
 # Remove unnecessary columns
 keep_cols = ['id', 'name', 'tags', 'ingredients', 'steps', 'average_rating', 'num_ratings']
 clean_df = recipes_df[keep_cols]
