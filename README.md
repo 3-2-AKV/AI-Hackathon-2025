@@ -1,104 +1,127 @@
-# AI-Hackathon-2025
+# Chefmate: Intelligent Recipe Planner
 
-## 🧠 AI Meal Planner App
-A smart, interactive meal planner built with Streamlit, powered by AI recipe generation. This app helps you manage your fridge, shopping cart, and cookbook — all while making use of ingredients efficiently and reducing food waste.
+**Chefmate** is a great AI helper when you need to manage your kitchen ingredients, plan shoppnig trips and generate personalized recipes based on the products you choose. It's built using Streamlit, allowing you to reduce food waste and enhance your culinary experiences.
 
-It’s like having a calm sous-chef that doesn’t yell, doesn’t judge, and actually reads your preferences.
+---
 
-## 📦 Features
-Ingredient Tracker: Add what you have at home and see when it expires.
+## Key Features
 
-Shopping Cart: Keep track of what to buy and quickly move it to your fridge.
+* **Ingredients Tab:** This tab represents all your ingredients you currently have in your fridge. You can specify the quantity, units and the expiry date. Track items that are already expired or that are about to by checking the appropriate list (Show/Hide Expired). Items that have less than 4 days until being expired will have an orange colored expiry date. Expired ones are showed in red.
+* **Shopping Cart Tab:** Organize and plan grocery shopping. Adding the products you're planning to buy allows you to click the "Prepare" button and add this item to your fridge.
+* **AI Recipe Generator Tab:** Automatically generate recipes based on available ingredients, those you have in your shopping cart (plan to buy) and personal preferences. Choose the number of recipes you want to get and their type. Press the "Save The Recipe" button after the recipe you want to save to your cookbook.
+* **Personal Cookbook Tab:** Save and manage your favorite recipes, searchable by keywords or meal types. All recipes are sorted from the newest to the oldest depending on when you add them to the cookbook.
 
-AI Recipe Generator: Choose ingredients, define your preferences, and generate full recipes (title, ingredients, steps).
+---
 
-Cookbook: Save recipes you love, search by keywords or meal type, and view them anytime.
+## Technologies Used
 
-## 🚀 How to Use
-#### 1. Ingredients Tab
-Manage everything currently in your fridge:
+* **Streamlit:** Interactive user interface
+* **Python:** Backend logic
+* **SQLite:** Database management
+* **Google Gemini API:** AI-driven recipe generation
 
-Add a product with name, amount, unit, and expiration date.
+---
 
-Toggle to show expired products.
+## Prerequisites
 
-Delete items or select them for recipe generation using checkboxes.
+* Python 3.7 or later
+* SQLite3
+* Gemini API Key (from Google Generative AI)
 
-#### 2. Shopping Cart Tab
-Track your grocery list:
+---
 
-Add items you plan to buy.
+## Installation Guide
 
-Click Prepare to input quantity, unit, and expiry once purchased — and move them directly into your fridge list.
+### Step-by-Step Installation
 
-#### 3. Create Recipe Tab
-Generate AI-based recipes using selected ingredients:
+1. **Clone the Repository:**
 
-Check the boxes next to ingredients you want to use.
+```bash
+git clone https://github.com/3-2-AKV/Chefmate-for-AI-Hackathon-2025
+cd chefmate
+```
 
-Set number of recipes, meal type, and any personal preferences (e.g. “no dairy”).
+2. **Set Up a Virtual Environment (Optional but Recommended):**
 
-AI will return full recipes with title, ingredients, and step-by-step instructions.
+```bash
+python -m venv env
+source env/bin/activate # on Windows: .\env\Scripts\activate
+```
 
-#### 4. Cookbook Tab
-Store and manage your favorite recipes:
+3. **Install Dependencies:**
 
-View all recipes you've saved.
+```bash
+pip install -r requirements.txt
+```
 
-Search by name or filter by meal type.
+4. **Configure Environment Variables:**
 
-Toggle “Show Recipe” to view details on the right.
+Create a `.env` file in the root directory and add your Gemini API key:
 
-Remove recipes with confirmation prompts.
+```env
+GEMINI_API_KEY=your_gemini_api_key
+```
 
-## 🧠 Database Overview
-The app uses SQLite with 3 tables:
+---
 
-ingredients
-Tracks items in your fridge:
+## Usage Examples
 
-id, name, amount, unit, expiration_date
+### Running the Application
 
-shopping_list
-Tracks grocery items you plan to buy:
+```bash
+streamlit run main.py
+```
 
-id, name
+### Adding Ingredients
 
-meal_plans
-Stores AI-generated recipes:
+* Navigate to **Ingredients** tab.
+* Enter product details and click **Add**.
 
-id, meal_type, meal_name, ingredients, instructions, date
+### Creating a Recipe
 
-## ⚙️ Under the Hood (Code Overview)
-Built with Streamlit (main.py)
+* Select ingredients you wish to use.
+* Go to **Create Recipe** tab.
+* Specify number of recipes, meal type, and preferences, then click **Create Recipe**.
 
-UI is split into two columns:
+---
 
-Left → Tabs with interactive controls (fridge, cart, recipe builder)
+## Configuration
 
-Right → Recipe output & viewer
+* **Gemini API Key:** Required for recipe generation. Set via `.env` file.
+* **Databases:** SQLite databases (`meal_planner.db`, `recipes.db`) store ingredients, shopping lists, and recipes.
 
-Ingredient and grocery lists are stored in st.session_state for persistent state across reruns.
+---
 
-Recipes are generated by an AI model (likely via generate_meal_plan()), and returned as JSON, parsed and rendered as full instructions.
+## Project Structure
 
-Data is synced with the database on every add/remove to persist state across sessions.
+```
+chefmate/
+├── database.py              # Database interactions
+├── existing_recipies.py     # Recipe retrieval from existing database
+├── main.py                  # Main Streamlit application
+├── recipe_gen.py            # Recipe generation via Gemini API
+├── requirements.txt         # Project dependencies
+├── meal_planner.db          # Ingredient, meal plan, and shopping list database
+├── recipes.db               # Existing recipe database
+└── README.md                # Project documentation
+```
 
-Confirmation buttons (with Are you sure?) prevent accidental deletion.
+---
 
-## 📌 Future Ideas
-(Tweak or delete this section if you want)
+## Contributing Guidelines
 
-Add nutritional info via API
+Currently, no specific contributing guidelines provided. General recommendations:
 
-Export cookbook to PDF
+* Fork and create a feature branch.
+* Ensure clear commit messages.
+* Test your changes locally before submitting a pull request.
 
-Add user login to sync across devices
+---
 
-Meal schedule planning (weekly view)
+## License
 
-## 🛠 Setup Instructions (Optional)
+No explicit license information found. Please contact the repository owner for usage permissions or licensing details.
 
+---
 
-Datasets to download:
-- https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions?resource=download&select=RAW_recipes.csv
+Enjoy exploring culinary creativity with Chefmate!

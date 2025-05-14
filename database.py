@@ -1,6 +1,5 @@
 import sqlite3
 import json
-from datetime import datetime
 from datetime import date
 
 # Taking the current date - for the recipe
@@ -21,12 +20,12 @@ def create_db():
 
     # Create meal plans table (this can store generated meal plans)
     c.execute('''CREATE TABLE IF NOT EXISTS meal_plans (
-                    id INTEGER PRIMARY KEY,
                     meal_type TEXT NOT NULL,
                     meal_name TEXT NOT NULL,
                     ingredients TEXT NOT NULL,
                     instructions TEXT NOT NULL,
-                    date TEXT NOT NULL)''')
+                    date TEXT NOT NULL,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT)''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS shopping_list (
                     id INTEGER PRIMARY KEY,
@@ -42,8 +41,10 @@ def insert_ingredient(name, amount, unit, expiration_date):
     c.execute('''INSERT INTO ingredients (name, amount, unit, expiration_date)
                  VALUES (?, ?, ?, ?)''',
               (name, amount, unit, expiration_date))
+    new_id = c.lastrowid
     conn.commit()
     conn.close()
+    return new_id
 
 # Insert an item to the shopping list database
 def insert_grocery_item(name):
@@ -52,8 +53,10 @@ def insert_grocery_item(name):
     c.execute('''INSERT INTO shopping_list (name)
                 VALUES (?)''',
                 (name,))
+    new_id = c.lastrowid
     conn.commit()
     conn.close()
+    return new_id
 
 # Get all the items from the shopping list database
 def get_grocery_list():
@@ -65,10 +68,10 @@ def get_grocery_list():
     return groceries
 
 # Remove an item from shopping list database
-def remove_grocery_from_db(name):
+def remove_grocery_from_db(id):
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
-    c.execute('DELETE FROM shopping_list WHERE name = ?', (name,))
+    c.execute('DELETE FROM shopping_list WHERE id = ?', (id,))
     conn.commit()
     conn.close()
 
@@ -130,9 +133,9 @@ def save_recipes_to_db(response):
     conn.commit()
     conn.close()
 
-def remove_recipe_from_db(name):
+def remove_recipe_from_db(id: int):
     conn = sqlite3.connect('meal_planner.db')
     c = conn.cursor()
-    c.execute('DELETE FROM meal_plans WHERE meal_name = ?', (name,))
+    c.execute('DELETE FROM meal_plans WHERE id = ?', (id,))
     conn.commit()
     conn.close()

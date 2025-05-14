@@ -1,7 +1,5 @@
-import os
 import re
 from datetime import datetime, date
-import json
 from existing_recipies import get_best_matching_recipes
 from google import genai
 from google.genai import types
@@ -67,7 +65,7 @@ def generate_meal_plan(ingredients, cart_ings, meal_type, num_recipes, checked_i
         f"Adapt recipes based on the following user preferences: {personal_preferences}.\n\n"
         f"EXPLAIN EACH STEP CAREFULLY\n\n"
         "For each recipe, provide exactly valid JSON in this form:\n"
-        "[{\n  \"name\": \"<title>\",\n  \"type\": \"<meal type>\",\n  \"ingredients\": [\"item1 (amt unit)\", …],\n  \"instructions\": [\"Step 1…\", …]\n}]"
+        "[{\n  \"name\": \"<title>\",\n  \"type\": \"<meal type (breakfast, lunch, dinner, dessert)>\",\n  \"ingredients\": [\"item1 (amt unit)\", …],\n  \"instructions\": [\"Step 1…\", …]\n}]"
     )
 
     # Call Gemini API
@@ -76,7 +74,7 @@ def generate_meal_plan(ingredients, cart_ings, meal_type, num_recipes, checked_i
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.2,
-            max_output_tokens=1024
+            max_output_tokens=2500
         )
     )
 
