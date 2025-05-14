@@ -63,7 +63,7 @@ def generate_meal_plan(ingredients, cart_ings, meal_type, num_recipes, checked_i
         f"If you need to add any other ingredients apart from {', '.join(input_names)}, you can use from this list:"
         f" {', '.join(all_ing)}, {', '.join(shopping_cart_ing)}.\n\n"
         f"Adapt recipes based on the following user preferences: {personal_preferences}.\n\n"
-        f"EXPLAIN EACH STEP CAREFULLY\n\n"
+        f"USE MEASURES FOR INGREDIENTS. EXPLAIN EACH STEP CAREFULLY\n\n"
         "For each recipe, provide exactly valid JSON in this form:\n"
         "[{\n  \"name\": \"<title>\",\n  \"type\": \"<meal type (breakfast, lunch, dinner, dessert)>\",\n  \"ingredients\": [\"item1 (amt unit)\", …],\n  \"instructions\": [\"Step 1…\", …]\n}]"
     )

@@ -1,9 +1,3 @@
+google
+google.genai
 streamlit
-langchain
-faiss-cpu
-google-generativeai
-vertexai
-pandas
-numpy
-sqlite3
-urllib3

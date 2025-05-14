@@ -34,33 +34,19 @@
 
 ### Step-by-Step Installation
 
-1. **Clone the Repository:**
+**Clone the Repository:**
 
 ```bash
 git clone https://github.com/3-2-AKV/Chefmate-for-AI-Hackathon-2025
-cd chefmate
+cd Chefmate-for-AI-Hackathon-2025
 ```
 
-2. **Set Up a Virtual Environment (Optional but Recommended):**
-
-```bash
-python -m venv env
-source env/bin/activate # on Windows: .\env\Scripts\activate
-```
-
-3. **Install Dependencies:**
+**Install Dependencies:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Configure Environment Variables:**
-
-Create a `.env` file in the root directory and add your Gemini API key:
-
-```env
-GEMINI_API_KEY=your_gemini_api_key
-```
 
 ---
 
@@ -69,7 +55,7 @@ GEMINI_API_KEY=your_gemini_api_key
 ### Running the Application
 
 ```bash
-streamlit run main.py
+python -m streamlit run main.py
 ```
 
 ### Adding Ingredients
@@ -87,7 +73,7 @@ streamlit run main.py
 
 ## Configuration
 
-* **Gemini API Key:** Required for recipe generation. Set via `.env` file.
+* **Gemini API Key:** Required for recipe generation. Set inside recipe_gen.py L9.
 * **Databases:** SQLite databases (`meal_planner.db`, `recipes.db`) store ingredients, shopping lists, and recipes.
 
 ---
@@ -95,7 +81,7 @@ streamlit run main.py
 ## Project Structure
 
 ```
-chefmate/
+Chefmate-for-AI-Hackathon-2025/
 ├── database.py              # Database interactions
 ├── existing_recipies.py     # Recipe retrieval from existing database
 ├── main.py                  # Main Streamlit application
@@ -117,11 +103,3 @@ Currently, no specific contributing guidelines provided. General recommendations
 * Test your changes locally before submitting a pull request.
 
 ---
-
-## License
-
-No explicit license information found. Please contact the repository owner for usage permissions or licensing details.
-
----
-
-Enjoy exploring culinary creativity with Chefmate!
