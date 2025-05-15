@@ -65,7 +65,7 @@ with left_col:
         with am_col:
             product_amount = st.text_input("Amount", placeholder = '2', key = "input_amount")
         with unit_col:
-            product_unit = st.selectbox("Unit", ['litres', 'kilograms', 'grams', 'items'], key = "input_unit")
+            product_unit = st.selectbox("Unit", ['litres', 'kilograms', 'grams', 'units'], key = "input_unit")
         with expiry_col:
             expiry_date = st.date_input("Expiry date", key = "input_expiry")
 
@@ -199,11 +199,11 @@ with left_col:
 
         st.write("##### Shopping List:")
         for i, item in enumerate(st.session_state['groceries']):
-            name_col_shop, add_to_fridge_col, remove_col_shop = st.columns([4, 1, 1])
+            name_col_shop, add_to_fridge_col, remove_col_shop = st.columns([4, 2, 1.5])
             with name_col_shop:
                 st.markdown(f"<div style='padding-top: 6px;'>{item['name']}</div>", unsafe_allow_html=True)
             with add_to_fridge_col:
-                if st.button("Prepare", key=f"prepare_grocery{i}"):  # Button to enter details of the product you bought
+                if st.button("Add to Ingredients", key=f"prepare_grocery{i}"):  # Button to enter details of the product you bought
                     # Tracking the current state of the button so that we can toggle it on and off
                     current_state = st.session_state.get(f'show_inputs_{i}', False)
                     st.session_state[f'show_inputs_{i}'] = not current_state  # Toggling
@@ -236,7 +236,7 @@ with left_col:
                 with amount_shop:
                     amount = st.text_input(f"Amount", key=f"amount_{i}", placeholder = "1")
                 with unit_col:
-                    unit = st.selectbox(f"Unit", ['litres', 'kilograms', 'grams', 'items'], key=f"unit_{i}")
+                    unit = st.selectbox(f"Unit", ['litres', 'kilograms', 'grams', 'units'], key=f"unit_{i}")
                 with expiry_shop:
                     expiry = st.date_input(f"Expiry date", key=f"expiry_{i}")
                 if st.button("Confirm", key=f"confirm_grocery{i}"):  # Adding from list to the fridge
