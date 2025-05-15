@@ -311,16 +311,19 @@ with left_col:
             if st.button("Search", key = "search_recipes_inputted"):
                 st.session_state["show_search_recipes"] = True
                 st.session_state["show_all_recipes"] = False
+                st.session_state["active_recipe_list"] = "search"
         with showall_btn_col:
             if st.button("Show All Recipes", key = "show_all_recipes_res"):
                 st.session_state["show_search_recipes"] = False
                 st.session_state["show_all_recipes"] = True
+                st.session_state["active_recipe_list"] = "all"
         st.divider()
         st.write("#### Recipes")
 
         if st.session_state.get("show_all_recipes", False):
             if all_recipes:
                 countRecipes = 0
+                st.session_state["displayed_recipes"] = all_recipes
                 for i in all_recipes:
                     name_col, show_col = st.columns([3, 1.27])
                     current_selected_show_recipe = st.session_state.get("selected_recipe_index", None)  # For showing recipes button
@@ -328,11 +331,9 @@ with left_col:
                         st.write(f"##### {i[1]}")
                     with show_col:
                         if st.button("Show/Hide Recipe", key = f"show_{countRecipes}"):
-                            if current_selected_show_recipe == countRecipes: # Show/Hide
-                                # If already selected, unselect (toggle off)
+                            if current_selected_show_recipe == countRecipes:
                                 st.session_state["selected_recipe_index"] = None
                             else:
-                                # Select a different one (toggle on)
                                 st.session_state["selected_recipe_index"] = countRecipes
                                 st.session_state.pop("response", None)
 
@@ -378,6 +379,7 @@ with left_col:
                     if search_type.lower() == i[0] and (key_words.lower() in i[1].lower() or key_words.lower() in i[2].lower()):
                             list_of_found.append(i)
             if list_of_found:
+                st.session_state["displayed_recipes"] = list_of_found
                 countRecipes = 0
                 for i in list_of_found:
                     name_col, show_col = st.columns([3, 1])
@@ -385,7 +387,7 @@ with left_col:
                     with name_col:
                         st.write(f"##### {i[1]}")
                     with show_col:
-                        if st.button("Show Recipe", key = f"show_{countRecipes}"):
+                        if st.button("Show/Hide Recipe", key = f"show_{countRecipes}"):
                             if current_selected_show_recipe == countRecipes:
                                 # If already selected, unselect (toggle off)
                                 st.session_state["selected_recipe_index"] = None
@@ -393,7 +395,7 @@ with left_col:
                                 # Select a different one (toggle on)
                                 st.session_state["selected_recipe_index"] = countRecipes
 
-                    type_col, date_col, remove_col = st.columns([1, 6, 2.75])
+                    type_col, date_col, remove_col = st.columns([1, 6, 2])
                     with type_col:
                         st.caption(i[0].capitalize())
                     with date_col:
@@ -429,7 +431,10 @@ with left_col:
 with right_col: 
     st.subheader("Recipes Output")
 
-    selected_index = st.session_state.get("selected_recipe_index")
+    # selected_index = st.session_state.get("selected_recipe_index")
+    selected_index = st.session_state.get("selected_recipe_index")  
+    displayed_recipes = st.session_state.get("displayed_recipes", [])
+
     if 'response' in st.session_state and st.session_state['response'] != "":
         cleaned = st.session_state['response'].strip()
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned)
@@ -472,9 +477,12 @@ with right_col:
                     if st.button("Add the recipe", key = f"add_recipy_{counter}"):
                         save_recipes_to_db(json.dumps(r))
                         st.success(f"✅ \"{r['name']}\" added to database!")
-    elif selected_index is not None and 0 <= selected_index < len(all_recipes):
+    elif selected_index is not None and 0 <= selected_index < len(displayed_recipes):
         st.session_state["response"] = ""
-        selected = all_recipes[selected_index]
+        # if list_of_found:
+        #     selected = list_of_found[selected_index]
+        # else:
+        selected = displayed_recipes[selected_index]
         st.subheader(f"{selected[1]}")
         st.caption(f"*{selected[0].capitalize()}*")
 
